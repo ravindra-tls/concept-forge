@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Concept Forge</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%9A%92%EF%B8%8F%3C/text%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand-mark">⚒ <span>Concept Forge</span></div>
+    <div class="topbar-right">
+      <div class="brand-current" id="brand-current"></div>
+      <div class="counter" id="counter"></div>
+      <button class="ghost-btn" id="new-session-btn" hidden>New brand</button>
+    </div>
+  </header>
+
+  <!-- SETUP -->
+  <section id="setup" class="setup">
+    <div class="setup-card">
+      <h1>Make new ad concepts.</h1>
+      <p class="sub">Set a quick brief, generate on-brand concepts, and steer with a creative partner on the side. Every concept clears a hidden quality check before you see it.</p>
+      <label class="field-label" for="brand-select">Choose a brand</label>
+      <select id="brand-select"></select>
+      <p class="hint" id="setup-hint"></p>
+      <button class="primary-btn big" id="start-btn">Start →</button>
+    </div>
+  </section>
+
+  <!-- WORKSPACE -->
+  <section id="game" class="game" hidden>
+    <!-- SIDE: chat + saved + finalized -->
+    <aside class="side">
+      <div class="chat">
+        <div class="chat-head">🧠 Creative partner <span class="chat-sub">steer me anytime</span></div>
+        <div id="chat-log" class="chat-log"></div>
+        <div id="chat-suggestions" class="chat-suggestions"></div>
+        <div class="chat-input-row">
+          <textarea id="chat-input" rows="2" placeholder="Share an idea, or ask for concepts… (Enter to send)"></textarea>
+          <button class="primary-btn" id="chat-send">Send</button>
+        </div>
+      </div>
+      <div class="panel">
+        <h2>❤ Saved <span class="pill-count" id="fav-count">0</span></h2>
+        <div id="favorites" class="mini-list"></div>
+      </div>
+      <div class="panel">
+        <h2>✓ Finalized <span class="pill-count" id="champ-count">0</span></h2>
+        <div id="champions" class="mini-list"></div>
+      </div>
+    </aside>
+
+    <!-- MAIN: brief bar on top, concepts below -->
+    <main class="main">
+      <section class="brief-bar">
+        <div class="brief-head"><button class="brief-toggle" id="brief-toggle" title="Show or hide the brief">▾</button> Brief <span class="brief-sub" id="brief-sub">set what you want, then Generate — leave anything blank and it's chosen for you</span></div>
+        <div id="brief-summary" class="brief-summary"></div>
+        <div id="brief" class="brief-segs"></div>
+        <div class="brief-actions">
+          <button class="primary-btn" id="deal-btn">Generate</button>
+          <button class="ghost-btn" id="spin-btn" title="Randomly fill the open creative choices">✨ Surprise me</button>
+          <button class="variations-btn" id="breed-btn" disabled title="Create variations from your saved concepts">Make variations (<span id="breed-count">0</span>)</button>
+          <label class="tb-field">Count <b id="count-label">4</b><input type="range" id="count-range" min="2" max="6" value="4" /></label>
+          <span class="model-badge" title="Concept Forge makes static image ads">🖼 Static ads</span>
+          <button class="tiny-btn" id="chain-clear" title="Clear all brief fields">clear brief</button>
+        </div>
+      </section>
+      <div class="board-head"><h2 id="board-title">Concepts</h2><span class="board-status" id="board-status"></span></div>
+      <div id="board" class="hand"></div>
+    </main>
+  </section>
+
+  <!-- FINALIZE MODAL -->
+  <div id="champion-modal" class="modal" hidden>
+    <div class="modal-box">
+      <button class="modal-close" id="champ-close">✕</button>
+      <div id="champion-body"></div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" hidden></div>
+  <div id="loader" class="loader" hidden><div class="anvil">⚒</div><div id="loader-text">Generating…</div></div>
+
+  <script src="/app.js"></script>
+</body>
+</html>

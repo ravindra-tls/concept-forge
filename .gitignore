@@ -1,0 +1,14 @@
+# Secrets — never commit
+.env
+.env.local
+
+# Runtime output
+sessions/
+exports/
+
+# Distilled grounding cache (regenerated from brand-context/*.md)
+brand-context/*.deck.json
+
+# OS / editor
+.DS_Store
+node_modules/

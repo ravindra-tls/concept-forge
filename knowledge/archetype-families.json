@@ -1,0 +1,111 @@
+{
+  "_note": "Ad-grammar families (composition archetypes). Each visual format in format-composition.json inherits one of these and overrides specifics. Adapted from tae-ad-studio's archetype methodology + product-hero + native-UI + a CONTRAST fallback for brands that ban before/after.",
+
+  "PRODUCT_HERO": {
+    "genre": "clean studio product/ingredient hero shot",
+    "composition": "One clear focal subject — the product (or its key ingredient) — on a rule-of-thirds anchor against a clean, uncluttered background. Generous negative space on one side or third reserved for the headline. Props arranged sparingly; never crowd the product or obscure the label.",
+    "mood": "premium, confident, clean",
+    "style": "photorealistic studio product photography, controlled soft lighting, crisp detail on the label",
+    "camera": { "lens": "105mm", "dof": "deep", "lighting": "studio-softbox", "angle": "eye-level", "framing": "medium" },
+    "textZone": "top",
+    "productPlacement": "hero",
+    "grammarNote": "The product is the subject and its label is legible. If the product isn't instantly recognizable and premium, it failed.",
+    "negatives": ["cluttered background", "busy composition", "distorted or misspelled label", "multiple competing products", "cartoon", "3d render"]
+  },
+
+  "TESTIMONIAL_NATIVE": {
+    "genre": "social-proof testimonial styled like a candid user post",
+    "composition": "The testifier in close-to-medium portrait, authentic not posed. Product appears incidentally (in hand or on a shelf, off-center). A large clear area (lower-left or top) is reserved for the quote/headline.",
+    "mood": "intimate, warm, lived-in, unglossy",
+    "style": "documentary / UGC photography, natural skin tones, slight grain, real domestic setting",
+    "camera": { "lens": "35mm", "dof": "shallow", "lighting": "natural-window", "angle": "eye-level", "framing": "close-up" },
+    "textZone": "lower-left",
+    "productPlacement": "incidental",
+    "grammarNote": "The person's voice is the hook; the image supports them. If it looks like a studio ad, it failed.",
+    "negatives": ["posed product-shoot feel", "hero-centered bottle", "stock-photo smile", "glossy retouch", "studio backdrop"]
+  },
+
+  "STAT_LED_AUTHORITY": {
+    "genre": "data-forward credibility ad",
+    "composition": "Strong negative space (40-50% of canvas) on the left or top reserved for one large stat/number plus a short supporting line. Product or ingredient anchors the opposite corner. High contrast between the clean stat zone and the rich product zone.",
+    "mood": "confident, credible, quietly scientific — not cold",
+    "style": "editorial still-life, controlled lighting, precise composition, premium finish",
+    "camera": { "lens": "105mm", "dof": "deep", "lighting": "studio-softbox", "angle": "eye-level", "framing": "medium" },
+    "textZone": "top-left",
+    "productPlacement": "incidental",
+    "grammarNote": "The number does the heavy lifting; keep its zone clean enough to render a large figure legibly at any size.",
+    "negatives": ["cluttered stat zone", "decorative type", "busy background", "competing focal points"]
+  },
+
+  "PROBLEM_AGITATION": {
+    "genre": "pain-first scroll-stopper",
+    "composition": "The subject embodies the problem through a recognizable gesture, expression, or environment — not the product. Close crop. Product absent or tiny. A large text zone across the top or bottom third for the hook.",
+    "mood": "subdued, honest, recognizable — never depressing or exaggerated",
+    "style": "documentary close-up, natural imperfect light, slightly desaturated, grain",
+    "camera": { "lens": "50mm", "dof": "shallow", "lighting": "natural-ambient", "angle": "eye-level", "framing": "close-up" },
+    "textZone": "bottom",
+    "productPlacement": "absent",
+    "grammarNote": "The scroller must recognize themselves within one second. Specificity beats beauty. Respect brand rules — no distress or shame where the brand forbids it.",
+    "negatives": ["prettified pain", "over-styling", "clinical coldness", "exaggerated distress", "shaming framing"]
+  },
+
+  "LIFESTYLE_ASPIRATION": {
+    "genre": "lifestyle aspiration ad",
+    "composition": "A real person mid-moment doing the thing the product enables (not holding it). Product is secondary — off-center or in soft focus. Large negative space in the lower-left or lower-third for copy. The setting communicates the desired life.",
+    "mood": "warm, aspirational, calm, golden-hour-adjacent",
+    "style": "lifestyle editorial photography, soft natural light, slight film look, shallow depth of field, warm grade",
+    "camera": { "lens": "35mm", "dof": "shallow", "lighting": "golden-hour", "angle": "eye-level", "framing": "wide" },
+    "textZone": "lower-left",
+    "productPlacement": "incidental",
+    "grammarNote": "Sell the life, not the bottle. If the product were removed, the image should still communicate the promise.",
+    "negatives": ["posed catalog look", "product hero-centered", "frenetic composition", "cold palette"]
+  },
+
+  "EDUCATIONAL_DEMYSTIFY": {
+    "genre": "informational explainer ad",
+    "composition": "Diagrammatic or deconstructed layout — ingredient(s), product component(s), or a simple conceptual visual (cross-section, arrow, comparison, numbered steps) on a clean surface. Large headline zone top or left. Lots of negative space.",
+    "mood": "curious, clear, instructional without being dry, a little playful",
+    "style": "clean studio photography or tasteful minimal illustration, high clarity, controlled shadows",
+    "camera": { "lens": "50mm", "dof": "deep", "lighting": "overhead-natural", "angle": "high-angle", "framing": "medium" },
+    "textZone": "top",
+    "productPlacement": "hero",
+    "grammarNote": "The image must teach something at a glance. If the viewer cannot point to what they learned, it did not earn its place in the feed.",
+    "negatives": ["cluttered diagram", "illegible labeling", "decorative noise", "too many elements"]
+  },
+
+  "BEFORE_AFTER": {
+    "genre": "before-and-after transformation ad",
+    "composition": "Split the canvas (50/50 or 60/40 hero-right). Left half shows the before state; right half shows the after state — same subject, same framing. Lower third reserved for headline + CTA. Keep the contrast legible at thumbnail size.",
+    "mood": "honest, quiet confidence — no miracle-cure drama",
+    "style": "clean editorial photography, diffuse soft light, minimal-retouch feel, shallow depth of field on the after side",
+    "camera": { "lens": "50mm", "dof": "shallow", "lighting": "diffuse-soft", "angle": "eye-level", "framing": "medium" },
+    "textZone": "bottom",
+    "productPlacement": "incidental",
+    "grammarNote": "The eye tracks left-to-right and lands on the outcome. Use only where the brand permits before/after; never doctor the result.",
+    "negatives": ["exaggerated before/after", "miracle-cure drama", "doctored or unrealistic transformation", "medical/clinical coldness"]
+  },
+
+  "CONTRAST": {
+    "genre": "side-by-side contrast ad (no medical before/after)",
+    "composition": "Two states or options side by side — old way vs new way, this vs that — with no editorializing arrows. Balanced split; the visual makes the winner obvious. Product anchors the winning side. Lower third reserved for the headline.",
+    "mood": "clear, confident, neutral",
+    "style": "clean editorial photography, even soft lighting on both sides",
+    "camera": { "lens": "50mm", "dof": "deep", "lighting": "even-soft", "angle": "eye-level", "framing": "medium" },
+    "textZone": "bottom",
+    "productPlacement": "hero",
+    "grammarNote": "The visual makes the winner obvious without claiming a medical transformation of a person's body.",
+    "negatives": ["before/after body claims", "medical implication", "doctored imagery", "named-competitor attack unless permitted"]
+  },
+
+  "NATIVE_UI": {
+    "genre": "native social/UI screenshot-style ad",
+    "composition": "Mimic a real interface (Notes app, iMessage/text thread, comment section, ChatGPT, review card) with believable, pixel-accurate UI chrome. The message/text is the focus. Minimal or no product; if present, a small inline thumbnail.",
+    "mood": "unfiltered, personal — like something you weren't meant to see",
+    "style": "pixel-accurate UI mimicry, flat, screenshot realism",
+    "camera": { "lens": "n/a", "dof": "n/a", "lighting": "flat-screen", "angle": "straight-on", "framing": "full-bleed" },
+    "textZone": "center",
+    "productPlacement": "incidental",
+    "grammarNote": "It must read as a real screenshot, not a designed ad. If it looks polished, it failed.",
+    "negatives": ["fake-looking UI", "misaligned interface elements", "garbled UI text", "over-designed"]
+  }
+}

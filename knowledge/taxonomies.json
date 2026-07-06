@@ -1,0 +1,150 @@
+{
+  "_note": "Distilled from the user's creative-strategy skill stack (~/.agents/skills). Data only; method guidance lives in prompt-fragments.js. Card dimensions draw their option sets from here.",
+
+  "awarenessStages": [
+    { "id": "unaware", "name": "Unaware", "who": "Doesn't know they have a problem", "strategy": "Introduce the pain/desire through a relatable situation or unexpected observation. No product mention." },
+    { "id": "problem-aware", "name": "Problem-Aware", "who": "Knows the problem, hasn't found a solution", "strategy": "Agitate the pain hard. Make them feel deeply understood. Build urgency." },
+    { "id": "solution-aware", "name": "Solution-Aware", "who": "Knows solutions exist, comparing options", "strategy": "Differentiate. Position against alternatives. Call out what's failed them before." },
+    { "id": "product-aware", "name": "Product-Aware", "who": "Knows your product, hasn't bought", "strategy": "Remove objections. Trigger FOMO. Social proof. Counter the reason they haven't bought." },
+    { "id": "most-aware", "name": "Most-Aware", "who": "Ready to buy, needs a nudge", "strategy": "Direct offer, urgency, guarantee, price anchoring. CTA-forward." }
+  ],
+
+  "mechanics": [
+    { "name": "Implied Answer", "move": "Hook poses a question; visuals silently answer it. The viewer concludes the truth themselves.", "stageFit": ["unaware", "problem-aware"] },
+    { "name": "Social Witness", "move": "A third party notices the change and comments — validation, not a self-reported claim.", "stageFit": ["problem-aware", "product-aware"] },
+    { "name": "Overheard Conversation", "move": "Framed as a text thread / DM / group chat you weren't meant to see. Feels like eavesdropping, not an ad.", "stageFit": ["unaware", "problem-aware"] },
+    { "name": "Reframe", "move": "Validates a belief the viewer holds, then flips the frame entirely. The new perspective is the hero.", "stageFit": ["problem-aware", "solution-aware"] },
+    { "name": "Borrowed Enemy", "move": "Describes a problem obviously caused by a competitor without naming them. The viewer makes the connection.", "stageFit": ["solution-aware", "product-aware"] },
+    { "name": "Trojan Horse", "move": "Opens as pure content until the final 20%, where the product appears naturally as the resolution.", "stageFit": ["unaware"] },
+    { "name": "Contrast Without Comment", "move": "Shows two realities side by side with zero editorializing. The visual makes it obvious.", "stageFit": ["problem-aware", "solution-aware"] },
+    { "name": "This and a…", "move": "Pairs the product with something aspirational; meaning is made through association, not explanation.", "stageFit": ["unaware", "problem-aware"] }
+  ],
+
+  "triggers": [
+    { "name": "Pattern Interrupt", "use": "Break mental autopilot — say something unexpected, counterintuitive, or visually jarring." },
+    { "name": "Identity Call-Out", "use": "Make the right people self-select with a hyper-specific identity." },
+    { "name": "Pain Agitation", "use": "Mirror their internal monologue so they feel deeply understood." },
+    { "name": "Curiosity Gap", "use": "Open a loop they need to close." },
+    { "name": "Social Proof / Credibility", "use": "Real people, real results, real specificity — numbers, before/afters." },
+    { "name": "Contrarian / Myth-Busting", "use": "Challenge a belief; make them feel they've been lied to." },
+    { "name": "Aspiration / Desire", "use": "Show the version of themselves on the other side of the product." },
+    { "name": "Urgency / Stakes", "use": "Make inaction feel costly." }
+  ],
+
+  "hookTactics": [
+    "Aspirational", "Authority", "Belief", "Bold Claim", "Call To Action First", "Challenge",
+    "Confession", "Contrast", "Contrarian", "Curiosity", "Demographic Callout", "Direct Address",
+    "Directive", "Exclusivity", "Explainer", "FOMO", "How To", "If Then", "Listicle", "Myth Busting",
+    "Offer Only", "Price Anchor", "Question", "Reasons Why", "Relatability", "Reverse Psychology",
+    "Risk Reversal", "Shocking Statement", "Social Proof", "Statistic", "Storytelling", "Urgency", "Warning"
+  ],
+
+  "voicePatterns": [
+    { "name": "Confession & Gatekeeping", "job": "\"I know something you don't\" — insider secret energy." },
+    { "name": "Confusion & Discovery", "job": "\"Wait, how did I not know this?\"" },
+    { "name": "Hot Takes & Contrarian Angles", "job": "\"Everyone believes X but…\"" },
+    { "name": "Experience Arc & Progression", "job": "\"I learned the hard way so you don't have to.\"" },
+    { "name": "Selective Audience & Stakes", "job": "\"This is specifically for you.\"" },
+    { "name": "Proximity & Category Framing", "job": "\"Make the X of Y.\"" },
+    { "name": "Soft Signals & Casual Drops", "job": "\"Low-key, no pressure, but pay attention.\"" },
+    { "name": "Cultural & Trend Commentary", "job": "\"Something in the world just revealed a bigger truth.\"" },
+    { "name": "Explanation Structures", "job": "\"Let me tell you exactly why this is the way it is.\"" },
+    { "name": "TikTok Native Formats", "job": "Borrowed cultural containers that feel native to the feed." }
+  ],
+
+  "formats": [
+    { "name": "AI Slop Animation", "medium": "Video/Static", "funnel": "TOF" },
+    { "name": "ASMR", "medium": "Video", "funnel": "TOF-MOF" },
+    { "name": "Before and After", "medium": "Video/Static", "funnel": "MOF-BOF" },
+    { "name": "Behind the Scenes", "medium": "Video", "funnel": "TOF-MOF" },
+    { "name": "Billboard", "medium": "Static", "funnel": "TOF-MOF" },
+    { "name": "Case Study", "medium": "Static", "funnel": "MOF-BOF" },
+    { "name": "ChatGPT", "medium": "Static", "funnel": "TOF-MOF" },
+    { "name": "Cinematic B-Roll", "medium": "Video", "funnel": "TOF-MOF" },
+    { "name": "Comment Response", "medium": "Video/Static", "funnel": "MOF-BOF" },
+    { "name": "Demo", "medium": "Video", "funnel": "MOF-BOF" },
+    { "name": "Expert Explainer", "medium": "Video", "funnel": "TOF-MOF" },
+    { "name": "Feature Benefit Callout", "medium": "Static", "funnel": "MOF-BOF" },
+    { "name": "Founder", "medium": "Video", "funnel": "TOF-MOF" },
+    { "name": "Greenscreen", "medium": "Video", "funnel": "Full" },
+    { "name": "Grid Swap", "medium": "Video/Static", "funnel": "TOF-MOF" },
+    { "name": "How-To", "medium": "Video", "funnel": "MOF" },
+    { "name": "Letter", "medium": "Static", "funnel": "TOF-MOF" },
+    { "name": "Listicle", "medium": "Video/Static", "funnel": "MOF" },
+    { "name": "Meme", "medium": "Video/Static", "funnel": "TOF" },
+    { "name": "Native Text Overlay", "medium": "Static", "funnel": "TOF-MOF" },
+    { "name": "Nostalgia", "medium": "Video/Static", "funnel": "TOF" },
+    { "name": "Notes App", "medium": "Static", "funnel": "TOF-MOF" },
+    { "name": "One Shot", "medium": "Video", "funnel": "TOF" },
+    { "name": "Pattern Interrupt", "medium": "Video/Static", "funnel": "TOF" },
+    { "name": "Podcast", "medium": "Video", "funnel": "TOF-MOF" },
+    { "name": "Post It", "medium": "Video/Static", "funnel": "TOF-MOF" },
+    { "name": "Press", "medium": "Static", "funnel": "MOF-BOF" },
+    { "name": "Reaction", "medium": "Video", "funnel": "MOF-BOF" },
+    { "name": "Review", "medium": "Static", "funnel": "BOF" },
+    { "name": "Selfie", "medium": "Static", "funnel": "TOF-MOF" },
+    { "name": "Sign", "medium": "Video/Static", "funnel": "TOF-BOF" },
+    { "name": "Skit", "medium": "Video", "funnel": "TOF-MOF" },
+    { "name": "Social Proof Mashup", "medium": "Video", "funnel": "MOF-BOF" },
+    { "name": "Split Screen", "medium": "Video", "funnel": "Full" },
+    { "name": "Statistic", "medium": "Static", "funnel": "MOF-BOF" },
+    { "name": "Street Interview", "medium": "Video", "funnel": "TOF-MOF" },
+    { "name": "Testimonial", "medium": "Video", "funnel": "MOF-BOF" },
+    { "name": "Text Message", "medium": "Static", "funnel": "TOF-MOF" },
+    { "name": "Time Lapse", "medium": "Video", "funnel": "TOF-MOF" },
+    { "name": "Trend", "medium": "Video", "funnel": "TOF" },
+    { "name": "Try-On", "medium": "Video", "funnel": "MOF-BOF" },
+    { "name": "Unboxing", "medium": "Video", "funnel": "TOF-MOF" },
+    { "name": "Unconventional Text Placement", "medium": "Video/Static", "funnel": "TOF" },
+    { "name": "Us vs. Them", "medium": "Video/Static", "funnel": "MOF" },
+    { "name": "VSL", "medium": "Video", "funnel": "BOF" },
+    { "name": "Yapper", "medium": "Video", "funnel": "Full" }
+  ],
+
+  "constraintCards": [
+    { "id": "six-words", "label": "≤6 words", "instruction": "The tagline must be 6 words or fewer." },
+    { "id": "confession", "label": "As a confession", "instruction": "Frame the line as a candid personal confession the customer would whisper, not announce." },
+    { "id": "no-adjectives", "label": "No adjectives", "instruction": "Use zero adjectives. Let nouns and verbs carry the weight." },
+    { "id": "ask-question", "label": "Ask a question", "instruction": "The hook must be a question the persona can't stop thinking about." },
+    { "id": "specific-moment", "label": "Name a moment", "instruction": "Anchor the line to one specific moment or time of day in the persona's life." },
+    { "id": "use-number", "label": "Use a number", "instruction": "Work a concrete, credible number into the line." },
+    { "id": "second-person", "label": "Second person", "instruction": "Address the reader directly as 'you'." },
+    { "id": "no-brand-name", "label": "No brand name", "instruction": "Do not use the brand or product name anywhere in the line." },
+    { "id": "contrarian-flip", "label": "Contrarian flip", "instruction": "Open by validating a common belief, then flip it." },
+    { "id": "text-from-friend", "label": "Text from a friend", "instruction": "Make it read like a casual text a friend would actually send." },
+    { "id": "one-syllable", "label": "Punchy & plain", "instruction": "Prefer short, plain, mostly one- and two-syllable words. No jargon." },
+    { "id": "sensory", "label": "Make it sensory", "instruction": "Lead with a physical sensation the persona feels in their body." }
+  ],
+
+  "ctaOptions": [
+    "Shop now",
+    "Learn more",
+    "Try it risk-free",
+    "Limited-time offer",
+    "Free shipping",
+    "Subscribe & save",
+    "Get the offer",
+    "Shop the bundle",
+    "See the results",
+    "Claim your discount",
+    "Book a consultation",
+    "Soft CTA (no hard sell)"
+  ],
+
+  "conversionEnhancers": [
+    { "id": "free-shipping", "label": "Free Shipping", "badge": "Free Shipping", "match": ["free shipping"] },
+    { "id": "cod", "label": "Cash on Delivery", "badge": "Cash on Delivery", "match": ["cash on delivery", "cod"] },
+    { "id": "money-back", "label": "30-Day Money-Back Guarantee", "badge": "30-Day Money-Back", "match": ["money-back", "money back", "guarantee"] },
+    { "id": "clinically-tested", "label": "Clinically Tested", "badge": "Clinically Tested", "match": ["clinically tested", "clinical"] },
+    { "id": "dermatologist-tested", "label": "Dermatologist Tested", "badge": "Dermatologist Tested", "match": ["dermatologist"] },
+    { "id": "vegan", "label": "Vegan", "badge": "Vegan", "match": ["vegan"] },
+    { "id": "cruelty-free", "label": "Cruelty-Free", "badge": "Cruelty-Free", "match": ["cruelty-free", "cruelty free", "not tested on animals"] },
+    { "id": "natural", "label": "100% Natural", "badge": "100% Natural", "match": ["100% natural", "natural"] },
+    { "id": "gluten-free", "label": "Gluten-Free", "badge": "Gluten-Free", "match": ["gluten-free", "gluten free"] },
+    { "id": "paraben-free", "label": "Paraben-Free", "badge": "Paraben-Free", "match": ["paraben"] },
+    { "id": "subscribe-save", "label": "Subscribe & Save", "badge": "Subscribe & Save", "match": ["subscribe"] },
+    { "id": "halal", "label": "Halal", "badge": "Halal", "match": ["halal"] },
+    { "id": "fda-facility", "label": "FDA-Registered Facility", "badge": "FDA-Registered", "match": ["fda"] },
+    { "id": "ships-24h", "label": "Ships in 24h", "badge": "Ships in 24h", "match": ["ships in 24", "24h", "fast shipping"] }
+  ]
+}

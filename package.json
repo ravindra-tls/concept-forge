@@ -1,0 +1,13 @@
+{
+  "name": "concept-forge",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Gamified ad-concept ideation tool grounded in the creative-strategy skill stack, powered by the Anthropic API. Intentionally zero-dependency (Node built-in http + fetch) for supply-chain safety.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18.17.0"
+  }
+}

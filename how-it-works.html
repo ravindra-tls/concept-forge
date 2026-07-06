@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Concept Forge — How it works</title>
+<style>
+  :root{
+    --bg:#f7f8fb; --panel:#ffffff; --ink:#1b2333; --muted:#5b6678; --faint:#8a94a6;
+    --line:#e5e8ef; --navy:#0a1628; --blue:#2f6df6; --gold:#b8862f; --gold-soft:#efe6cf;
+    --green:#1f8a5b; --rose:#c0456b; --violet:#6b4bd6;
+    --shadow:0 1px 2px rgba(18,28,45,.04),0 8px 24px rgba(18,28,45,.06);
+    --radius:14px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased}
+  .wrap{max-width:1040px;margin:0 auto;padding:40px 22px 80px}
+  header.top{margin-bottom:8px}
+  .badge{display:inline-block;font-size:12px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;
+    color:var(--gold);background:var(--gold-soft);border-radius:999px;padding:4px 12px}
+  h1{font-size:32px;line-height:1.15;margin:14px 0 6px;letter-spacing:-.02em}
+  .sub{color:var(--muted);font-size:16px;max-width:70ch}
+  h2{font-size:21px;margin:44px 0 4px;letter-spacing:-.01em}
+  h2 .n{color:var(--faint);font-variant-numeric:tabular-nums;margin-right:10px;font-weight:600}
+  h3{font-size:15px;margin:20px 0 6px;color:var(--navy)}
+  p{margin:8px 0}
+  .lead{color:var(--muted);margin-bottom:14px;max-width:80ch}
+  code,.mono{font-family:"SF Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.86em}
+  code{background:#eef1f7;border:1px solid var(--line);border-radius:6px;padding:1px 6px;color:#31405c}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:20px 22px}
+  .grid{display:grid;gap:14px}
+  @media(min-width:720px){.grid.cols-2{grid-template-columns:1fr 1fr}.grid.cols-3{grid-template-columns:1fr 1fr 1fr}}
+
+  /* pipeline */
+  .pipe{display:flex;flex-wrap:wrap;align-items:stretch;gap:10px;margin:18px 0 4px}
+  .stage{flex:1 1 150px;min-width:140px;background:var(--panel);border:1px solid var(--line);
+    border-radius:12px;padding:12px 13px;box-shadow:var(--shadow);position:relative}
+  .stage .k{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--faint);font-weight:700}
+  .stage .t{font-weight:650;margin:3px 0 2px;font-size:14.5px}
+  .stage .d{font-size:12.5px;color:var(--muted);line-height:1.45}
+  .stage .m{display:inline-block;margin-top:8px;font-size:10.5px;font-weight:600;border-radius:999px;padding:2px 8px}
+  .m.haiku{background:#eaf1ff;color:#2f5fd0} .m.sonnet{background:#eafaf1;color:#1f8a5b}
+  .m.opus{background:#f3edff;color:#6b4bd6} .m.fal{background:#fdeef3;color:#c0456b}
+  .m.free{background:#eef1f7;color:#5b6678}
+  .arrow{align-self:center;color:var(--faint);font-size:20px;flex:0 0 auto}
+  @media(max-width:719px){.arrow{transform:rotate(90deg)}}
+
+  ol.flow{counter-reset:step;list-style:none;padding:0;margin:8px 0}
+  ol.flow>li{position:relative;padding:14px 16px 14px 54px;border:1px solid var(--line);
+    border-radius:12px;background:var(--panel);box-shadow:var(--shadow);margin-bottom:10px}
+  ol.flow>li::before{counter-increment:step;content:counter(step);position:absolute;left:14px;top:14px;
+    width:26px;height:26px;border-radius:50%;background:var(--navy);color:#fff;font-weight:700;font-size:13px;
+    display:flex;align-items:center;justify-content:center}
+  ol.flow b{color:var(--navy)}
+  .tag{display:inline-block;font-size:11px;font-weight:600;border-radius:6px;padding:1px 7px;margin-left:6px}
+  .tag.free{background:#eef1f7;color:#5b6678}
+  .tag.ai{background:#f3edff;color:#6b4bd6}
+
+  table{width:100%;border-collapse:collapse;margin-top:10px;font-size:13.5px}
+  th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line)}
+  th{font-size:11.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--faint)}
+  td .bar{height:7px;border-radius:4px;background:var(--gold);display:inline-block;vertical-align:middle}
+  .pill{font-size:11px;font-weight:600;border-radius:999px;padding:2px 9px}
+  .pill.opus{background:#f3edff;color:#6b4bd6}.pill.sonnet{background:#eafaf1;color:#1f8a5b}
+  .pill.haiku{background:#eaf1ff;color:#2f5fd0}.pill.fal{background:#fdeef3;color:#c0456b}
+
+  .note{border-left:3px solid var(--gold);background:#fffdf7;padding:10px 14px;border-radius:0 10px 10px 0;
+    color:#5a5030;font-size:13.5px;margin-top:12px}
+  .kv{font-size:13px;color:var(--muted)}
+  .kv b{color:var(--ink)}
+  .files{font-size:12.5px;color:var(--muted)}
+  .files code{font-size:.95em}
+  footer{margin-top:50px;color:var(--faint);font-size:12.5px;text-align:center}
+  .legend{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+  .legend span{font-size:11.5px}
+  .hl{background:linear-gradient(transparent 62%, #f6e6bf 62%);padding:0 2px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <span class="badge">⚒ Concept Forge</span>
+    <h1>How it works</h1>
+    <p class="sub">A local, zero-dependency tool that turns a brand's real truths into emotionally-honest static ad concepts — grounded, quality-gated, and rendered into finished images. This page walks the <b>user flow</b>, the <b>data flow</b>, and <b>how concepts are actually generated</b>.</p>
+  </header>
+
+  <!-- ============ PIPELINE OVERVIEW ============ -->
+  <h2><span class="n">01</span>The pipeline at a glance</h2>
+  <p class="lead">Every concept travels the same path — from raw brand facts to a finished, on-brand ad image. Colored chips show which model does the work at each step.</p>
+
+  <div class="pipe">
+    <div class="stage">
+      <div class="k">Ground</div><div class="t">Brand deck</div>
+      <div class="d">Brand doc → structured facts, personas & inner-life.</div>
+      <span class="m sonnet">Sonnet</span>
+    </div>
+    <div class="arrow">→</div>
+    <div class="stage">
+      <div class="k">Empathize</div><div class="t">Mine insights</div>
+      <div class="d">Imagine her inner life → ~8 raw human tensions.</div>
+      <span class="m opus">Opus</span>
+    </div>
+    <div class="arrow">→</div>
+    <div class="stage">
+      <div class="k">Generate</div><div class="t">Concept cards</div>
+      <div class="d">Spread across ad-types; each a distinct concept.</div>
+      <span class="m haiku">Haiku</span>
+    </div>
+    <div class="arrow">→</div>
+    <div class="stage">
+      <div class="k">Gate</div><div class="t">Judge</div>
+      <div class="d">Score 6 axes; only ≥70 & compliant survive.</div>
+      <span class="m sonnet">Sonnet</span>
+    </div>
+    <div class="arrow">→</div>
+    <div class="stage">
+      <div class="k">Polish</div><div class="t">Finalize</div>
+      <div class="d">Headline, taglines, compliance check.</div>
+      <span class="m opus">Opus</span>
+    </div>
+    <div class="arrow">→</div>
+    <div class="stage">
+      <div class="k">Render</div><div class="t">Template → image</div>
+      <div class="d">Fill a proven layout → generate the ad.</div>
+      <span class="m opus">Opus</span> <span class="m fal">Nano&nbsp;Banana</span>
+    </div>
+  </div>
+
+  <!-- ============ USER FLOW ============ -->
+  <h2><span class="n">02</span>The user flow</h2>
+  <p class="lead">What a strategist actually clicks through, start to finish.</p>
+
+  <ol class="flow">
+    <li><b>Pick a brand.</b> The app loads that brand's grounding deck (its verified facts, personas, and voice). The UI — Brief bar and board — is usable immediately; only generation needs an API key.</li>
+    <li><b>Set the Brief.</b> Optionally pin a <b>persona</b>, <b>pain/desire</b>, awareness stage, format, CTA, etc. Anything left blank is chosen per-concept. Nothing pinned = maximum spread.</li>
+    <li><b>🔍 Mine insights.</b> <span class="tag ai">AI</span> Pick a persona and the app imagines her inner life, surfacing ~8 <b>raw human tensions</b> she'd never say aloud (envy, shame, grief, fear). You select the truest <b>3–4</b> as the emotional core.</li>
+    <li><b>Generate.</b> <span class="tag ai">AI</span> The engine produces a hand of concept cards — each a <span class="hl">fundamentally different ad type</span>, built on a real product truth <em>and</em> a human tension. A hidden judge silently discards anything weak; you only see cards that passed.</li>
+    <li><b>Curate on the board.</b> Keep the ones you love (they can seed <b>variations</b>), discard the rest. Comment on any line to regenerate it.</li>
+    <li><b>Finalize a concept.</b> <span class="tag ai">AI</span> Promote a card to a polished spec: headline, tagline variants, on-image copy, a "why it works," and a compliance check.</li>
+    <li><b>Build the ad from a template.</b> <span class="tag ai">AI</span> The app auto-matches a proven ad-layout template (from a library of 300), narrowed to the <b>best matches</b> for this concept. Swap it for any other if you like.</li>
+    <li><b>🎨 Generate the image.</b> <span class="tag ai">AI</span> Nano Banana Pro renders the finished ad in-app (1K/2K/4K), using your product photo as reference. Download, regenerate, or export the record.</li>
+  </ol>
+
+  <!-- ============ DATA FLOW ============ -->
+  <h2><span class="n">03</span>The data flow</h2>
+  <p class="lead">Where the facts come from and how they're kept honest. The golden rule: <b>concepts may only use facts from the grounding deck</b> — nothing is invented.</p>
+
+  <div class="grid cols-2">
+    <div class="panel">
+      <h3>Building the grounding deck</h3>
+      <p class="kv">A hand-written <code>brand-context/&lt;brand&gt;.md</code> is distilled once into a compact, structured <code>&lt;brand&gt;.deck.json</code> (cached on disk).</p>
+      <p class="kv" style="margin-top:10px"><b>Personas</b> carry not just <span class="mono">name / life / wants</span> but an <b>inner-life layer</b> — inner monologue, unspoken fears, who she envies, the moments that sting, who she was vs. wants to be. Legacy decks are enriched automatically on load. <span class="pill sonnet">Sonnet</span></p>
+      <p class="kv" style="margin-top:10px"><b>Pains</b> carry the functional problem plus real voice-of-customer phrases. Plus product truths, proof points, brand voice, and <b>banned language</b>.</p>
+    </div>
+    <div class="panel">
+      <h3>How the deck is used</h3>
+      <p class="kv">The deck renders into one compact text block that is injected — with prompt-caching — into <b>both</b> the generator and the judge, so both share the exact same notion of "true" and "on-brand."</p>
+      <p class="kv" style="margin-top:10px">Selected <b>insights</b> and Brief <b>pins</b> live on the session. Mined-but-unused insights are cached so re-opening the tray never re-mines.</p>
+      <div class="note">Nothing outside the deck counts as fact. The judge treats any stat or number not in the proof points as a <b>fabrication</b> and fails it.</div>
+    </div>
+  </div>
+
+  <div class="panel" style="margin-top:14px">
+    <h3>End-to-end data path</h3>
+    <div class="pipe" style="margin-top:6px">
+      <div class="stage"><div class="t">brand-context/*.md</div><div class="d">Hand-written brand truths.</div><span class="m free">source</span></div>
+      <div class="arrow">→</div>
+      <div class="stage"><div class="t">deck.json</div><div class="d">Distilled + persona inner-life.</div><span class="m sonnet">Sonnet</span></div>
+      <div class="arrow">→</div>
+      <div class="stage"><div class="t">grounding block</div><div class="d">Cached prompt context.</div><span class="m free">derived</span></div>
+      <div class="arrow">→</div>
+      <div class="stage"><div class="t">concept cards</div><div class="d">Persona×pain×insight×format…</div><span class="m haiku">Haiku</span></div>
+      <div class="arrow">→</div>
+      <div class="stage"><div class="t">export record</div><div class="d">Filled template + prompt.</div><span class="m opus">Opus</span></div>
+      <div class="arrow">→</div>
+      <div class="stage"><div class="t">image URL</div><div class="d">Finished ad.</div><span class="m fal">Nano Banana</span></div>
+    </div>
+  </div>
+
+  <!-- ============ HOW CONCEPTS ARE GENERATED ============ -->
+  <h2><span class="n">04</span>How concepts are generated</h2>
+  <p class="lead">The heart of the tool. Three ideas work together to make concepts that are <b>grounded</b>, <b>emotionally true</b>, and <b>genuinely varied</b>.</p>
+
+  <div class="grid cols-3">
+    <div class="panel">
+      <h3>① Emotional core</h3>
+      <p class="kv">Every concept is built on a real <b>human tension</b> — the thing she feels but won't say — surfaced <em>with empathy</em>, never mockery. This is what lifts an ad from a functional pain ("dry skin") to a truth ("my arms give my age away before I do").</p>
+    </div>
+    <div class="panel">
+      <h3>② Diversity engine</h3>
+      <p class="kv">Before generating, each card in the batch is assigned a <b>distinct</b> awareness × mechanic × hook-tactic × format (and one insight, rotated). So a hand is a Confession UGC selfie <em>and</em> a stat card <em>and</em> a before/after — not one line reworded. The overused "X isn't Y, it's Z" reframe is capped at one card.</p>
+    </div>
+    <div class="panel">
+      <h3>③ Quality gate</h3>
+      <p class="kv">A skeptical judge scores every candidate. The engine <b>over-generates</b> and silently discards anything below the bar or non-compliant, so you only ever see concepts that passed. Weak cards never reach the board.</p>
+    </div>
+  </div>
+
+  <h3 style="margin-top:26px">The generate → judge → refill loop</h3>
+  <div class="pipe">
+    <div class="stage"><div class="k">plan</div><div class="t">Assign dimensions</div><div class="d">Distinct ad-type per card; respect pins.</div><span class="m free">free</span></div>
+    <div class="arrow">→</div>
+    <div class="stage"><div class="k">write</div><div class="t">Draft candidates</div><div class="d">Over-generate (+2 buffer).</div><span class="m haiku">Haiku</span></div>
+    <div class="arrow">→</div>
+    <div class="stage"><div class="k">score</div><div class="t">Judge 6 axes</div><div class="d">Gate: ≥70 & compliant.</div><span class="m sonnet">Sonnet</span></div>
+    <div class="arrow">→</div>
+    <div class="stage"><div class="k">refill</div><div class="t">Top up if short</div><div class="d">Up to 2 rounds, sort by score.</div><span class="m free">free</span></div>
+  </div>
+
+  <h3 style="margin-top:26px">What the judge rewards</h3>
+  <p class="lead">Six axes, weighted. <b>Emotional truth now sits alongside product truth</b> — a raw, empathetic human truth scores high; a generic platitude scores low. Compliance is a separate hard gate.</p>
+  <div class="panel">
+    <table>
+      <thead><tr><th>Axis</th><th>Weight</th><th style="width:46%">What it measures</th></tr></thead>
+      <tbody>
+        <tr><td>Product truth</td><td><span class="bar" style="width:96px"></span> 24%</td><td>Anchored in a real brand mechanism / proof — not a generic claim.</td></tr>
+        <tr><td>Emotional truth</td><td><span class="bar" style="width:88px;background:var(--rose)"></span> 22%</td><td>A real, uncomfortable human truth, surfaced with empathy — not feel-good filler.</td></tr>
+        <tr><td>Specificity</td><td><span class="bar" style="width:88px"></span> 22%</td><td>Unmistakably for THIS persona about THIS pain.</td></tr>
+        <tr><td>Concreteness</td><td><span class="bar" style="width:52px"></span> 13%</td><td>Vivid, specific detail — not vague platitude.</td></tr>
+        <tr><td>Scroll-stop</td><td><span class="bar" style="width:48px"></span> 12%</td><td>Earns the stop for its awareness stage.</td></tr>
+        <tr><td>Brand voice</td><td><span class="bar" style="width:28px"></span> 7%</td><td>On-tone; zero banned language.</td></tr>
+      </tbody>
+    </table>
+    <div class="note"><b>Hard compliance gate.</b> Any banned term, medical/disease claim, or brand-constraint violation fails instantly, whatever the score. Exploring a raw emotion is <em>not</em> a violation — only banned claims or shaming the viewer are. Pass bar: <b>overall ≥ 70</b>.</div>
+  </div>
+
+  <!-- ============ EXPORT / RENDER ============ -->
+  <h2><span class="n">05</span>From concept to finished image</h2>
+  <p class="lead">Composition isn't freestyled — that produced pretty photos but weak ads. Instead a proven <b>ad-layout template</b> is filled with the concept's copy.</p>
+  <div class="grid cols-2">
+    <div class="panel">
+      <h3>Template match</h3>
+      <p class="kv">300 real-ad layout templates (each a prompt with <code>[PLACEHOLDER]</code> tokens) are ranked for the concept by category + tagline keywords; the picker shows the <b>~15 best matches</b> with a "show all" toggle. <span class="pill free" style="background:#eef1f7;color:#5b6678">instant</span></p>
+    </div>
+    <div class="panel">
+      <h3>Fill & render</h3>
+      <p class="kv">Opus fills the template's tokens from the concept copy + brand deck — compliance-safe, never inventing stats. <span class="pill opus">Opus</span> Then Nano Banana Pro renders the finished ad from that prompt + your product reference photo. <span class="pill fal">Nano Banana Pro</span></p>
+    </div>
+  </div>
+
+  <!-- ============ MODELS ============ -->
+  <h2><span class="n">06</span>The models</h2>
+  <div class="panel">
+    <table>
+      <thead><tr><th>Stage</th><th>Model</th><th>Why</th></tr></thead>
+      <tbody>
+        <tr><td>Deck distill & persona enrichment</td><td><span class="pill sonnet">Claude Sonnet</span></td><td>Careful extraction, faithful to the source.</td></tr>
+        <tr><td>Insight mining</td><td><span class="pill opus">Claude Opus</span></td><td>Depth — reaching real, uncomfortable human truth.</td></tr>
+        <tr><td>Concept generation</td><td><span class="pill haiku">Claude Haiku</span></td><td>Fast, cheap, high-volume drafting.</td></tr>
+        <tr><td>Judge / quality gate</td><td><span class="pill sonnet">Claude Sonnet</span></td><td>Skeptical, consistent scoring.</td></tr>
+        <tr><td>Finalize & template fill</td><td><span class="pill opus">Claude Opus</span></td><td>Best final craft & compliance.</td></tr>
+        <tr><td>Image generation</td><td><span class="pill fal">Nano Banana Pro</span></td><td>Google Gemini 3 Pro Image, via fal.ai.</td></tr>
+      </tbody>
+    </table>
+    <p class="files" style="margin-top:14px">Key modules: <code>lib/grounding.js</code> (deck + enrichment) · <code>lib/insights.js</code> (mining) · <code>lib/generator.js</code> (diversity engine) · <code>lib/judge.js</code> (gate) · <code>lib/champion.js</code> (finalize) · <code>lib/templates.js</code> + <code>lib/export.js</code> (template fill) · <code>lib/falai.js</code> (image). Zero runtime dependencies — Node's built-in server + fetch.</p>
+  </div>
+
+  <footer>
+    Concept Forge — grounded, emotionally honest, quality-gated ad concepts. This document reflects the current build.
+  </footer>
+
+</div>
+</body>
+</html>

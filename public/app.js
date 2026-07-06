@@ -1,0 +1,854 @@
+'use strict';
+
+// ---------- state ----------
+let TAX = null;
+let session = null;
+let deck = null;
+let brandSlug = null;
+let suggestions = [];
+const cardComments = {};      // cardId -> [{quote, comment}] on board concepts
+const championComments = {};  // cardId -> [{quote, comment}] on finalized concepts
+let currentChampion = null;   // { card, champ } currently open in the finalize modal
+let commentWidget = null;
+let briefCollapsed = false;
+const toolbar = { count: 4, medium: 'Static' }; // static-image tool
+
+const $ = (id) => document.getElementById(id);
+
+// ---------- api ----------
+async function api(method, path, body) {
+  let res;
+  try {
+    res = await fetch(path, {
+      method,
+      headers: body ? { 'content-type': 'application/json' } : undefined,
+      body: body ? JSON.stringify(body) : undefined,
+      // Generation can take up to ~2 min on rich brands; cap so a dropped connection
+      // fails LOUDLY instead of hanging the loader forever.
+      signal: AbortSignal.timeout(240000),
+    });
+  } catch (err) {
+    if (err && (err.name === 'TimeoutError' || err.name === 'AbortError')) {
+      throw new Error('The server took too long or the connection dropped. If the dev server restarted, reload the page (Ctrl+F5) and try again.');
+    }
+    throw new Error('Could not reach the server — it may have restarted or stopped. Reload the page (Ctrl+F5); if it persists, restart the dev server (node server.js).');
+  }
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) { const e = new Error(data.error || `Request failed (${res.status})`); e.code = data.code; throw e; }
+  return data;
+}
+function isSessionErr(e) { return /session not found|deck unavailable/i.test(e.message || ''); }
+async function recreateSession() {
+  if (!brandSlug) throw new Error('No brand to recreate session for.');
+  const data = await api('POST', '/api/session', { slug: brandSlug });
+  session = data.session; deck = data.deck; toast('Server had restarted — recreated your session.');
+}
+async function callWithSession(method, path, makeBody) {
+  try { return await api(method, path, makeBody()); }
+  catch (e) { if (isSessionErr(e)) { await recreateSession(); return await api(method, path, makeBody()); } throw e; }
+}
+
+// ---------- helpers ----------
+function toast(msg, isErr) {
+  const t = $('toast'); t.textContent = msg; t.className = 'toast' + (isErr ? ' err' : ''); t.hidden = false;
+  clearTimeout(toast._t); toast._t = setTimeout(() => { t.hidden = true; }, isErr ? 6000 : 3000);
+}
+function showLoader(text) { $('loader-text').textContent = text || 'Generating…'; $('loader').hidden = false; }
+function hideLoader() { $('loader').hidden = true; }
+function personaName(id) { const p = (deck?.personas || []).find((x) => x.id === id); return p ? p.name : id; }
+function painLabel(id) { const p = (deck?.pains || []).find((x) => x.id === id); return p ? p.label : id; }
+function stageName(id) { const s = (TAX?.stages || []).find((x) => x.id === id); return s ? s.name : id; }
+function barColor(v) { return v >= 85 ? 'var(--green)' : v >= 70 ? 'var(--gold)' : 'var(--red)'; }
+function randOf(a) { return a[Math.floor(Math.random() * a.length)]; }
+function mediumOk(f) { if (!f || toolbar.medium === 'Any') return true; return f.medium === toolbar.medium || f.medium === 'Video/Static'; }
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+
+// ---------- init ----------
+async function init() {
+  try {
+    TAX = await api('GET', '/api/taxonomies');
+    const { brands, hasApiKey, hasFalKey } = await api('GET', '/api/brands');
+    const sel = $('brand-select'); sel.innerHTML = '';
+    if (!brands.length) { sel.innerHTML = '<option>No brands found — add brand-context/*.md</option>'; $('start-btn').disabled = true; }
+    else brands.forEach((b) => { const o = document.createElement('option'); o.value = b.slug; o.textContent = b.name; sel.appendChild(o); });
+    const bits = [hasApiKey ? '✓ Anthropic key detected' : '⚠ No ANTHROPIC_API_KEY — set it before generating'];
+    bits.push(hasFalKey ? '✓ fal.ai key detected' : '⚠ No FAL_KEY — image generation on export will be unavailable until it\'s set');
+    $('setup-hint').textContent = bits.join(' · ');
+  } catch (e) { toast(e.message, true); }
+}
+
+// ---------- session ----------
+function buildSuggestions() {
+  const p = deck.personas || []; const pains = deck.pains || [];
+  const out = [];
+  if (p[0] && pains[0]) out.push(`Concepts for ${p[0].name} about "${pains[0].label}"`);
+  out.push(`3 scroll-stopping visual ideas for ${deck.brand.split('(')[0].trim()}`);
+  if (pains[1]) out.push(`Give me a concept that leans into "${pains[1].label}"`);
+  out.push(`Which angle would convert best for ${p[1] ? p[1].name : 'our buyer'}?`);
+  return out.slice(0, 4);
+}
+async function startSession() {
+  brandSlug = $('brand-select').value;
+  showLoader('Loading brand…');
+  try {
+    const data = await api('POST', '/api/session', { slug: brandSlug });
+    session = data.session; deck = data.deck;
+    $('brand-current').textContent = deck.brand + (deck.oneLiner ? ' — ' + deck.oneLiner : '');
+    $('setup').hidden = true; $('game').hidden = false; $('new-session-btn').hidden = false;
+    suggestions = buildSuggestions();
+    render(); renderChat();
+  } catch (e) { toast(e.message, true); } finally { hideLoader(); }
+}
+
+// ---------- master render ----------
+function render() { renderBoard(); renderChain(); renderFavorites(); renderChampions(); syncStats(); }
+function syncStats() {
+  const b = (session.board || []).length, f = (session.champions || []).length;
+  $('counter').textContent = `${b} concept${b !== 1 ? 's' : ''} · ${f} finalized`;
+  $('breed-count').textContent = session.favorites.length;
+  $('breed-btn').disabled = session.favorites.length === 0;
+}
+
+// ---------- chat ----------
+function renderChat() {
+  const log = $('chat-log'); log.innerHTML = '';
+  const chat = session.chat || [];
+  if (!chat.length) {
+    log.innerHTML = '<div class="chat-empty">👋 I\'m your creative partner. Set a Brief above, or just tell me an idea / ask for concepts here — you can start anywhere.</div>';
+  } else {
+    chat.forEach((m) => { const d = document.createElement('div'); d.className = 'msg ' + (m.role === 'user' ? 'user' : 'assistant'); d.textContent = m.text; log.appendChild(d); });
+  }
+  const sug = $('chat-suggestions'); sug.innerHTML = '';
+  (suggestions || []).forEach((s) => { const b = document.createElement('button'); b.className = 'suggestion'; b.textContent = s; b.addEventListener('click', () => { $('chat-input').value = s; sendChat(); }); sug.appendChild(b); });
+  log.scrollTop = log.scrollHeight;
+}
+function appendMsg(role, text) {
+  const log = $('chat-log'); const empty = log.querySelector('.chat-empty'); if (empty) empty.remove();
+  const d = document.createElement('div'); d.className = 'msg ' + role; d.textContent = text; log.appendChild(d); log.scrollTop = log.scrollHeight; return d;
+}
+async function sendChat() {
+  const input = $('chat-input'); const text = input.value.trim(); if (!text) return;
+  input.value = '';
+  appendMsg('user', text);
+  const pending = appendMsg('assistant', 'thinking…'); pending.classList.add('pending');
+  try {
+    const data = await callWithSession('POST', '/api/chat', () => ({ sessionId: session.id, message: text }));
+    session = data.session; suggestions = data.suggestions || suggestions;
+    render(); renderChat();
+    if (data.cards && data.cards.length) toast(`${data.cards.length} concept(s) added`);
+  } catch (e) { pending.remove(); toast(e.message, true); }
+}
+
+// ---------- board ----------
+function renderBoard() {
+  const host = $('board'); host.innerHTML = '';
+  const board = session.board || [];
+  $('board-status').textContent = board.length ? `${board.length} concept(s)` : '';
+  if (!board.length) { host.innerHTML = '<div class="mini empty" style="grid-column:1/-1">No concepts yet — set your Brief above and hit <b>Generate</b>, or ask the partner on the left.</div>'; return; }
+  board.forEach((c) => host.appendChild(cardEl(c)));
+}
+
+function axesEl(s) {
+  const axes = [['Truth', s.productTruth], ['Emotion', s.emotionalTruth], ['Specific', s.specificity], ['Concrete', s.concreteness], ['Scroll', s.scrollStop], ['Voice', s.brandVoice]];
+  const wrap = document.createElement('div'); wrap.className = 'axes';
+  axes.forEach(([label, v]) => { const a = document.createElement('div'); a.className = 'axis'; a.innerHTML = `<div class="abar"><span style="width:${v}%;background:${barColor(v)}"></span></div><div class="alabel">${label}</div>`; wrap.appendChild(a); });
+  return wrap;
+}
+
+function cardEl(card) {
+  const el = document.createElement('div'); el.className = 'card'; el.dataset.id = card.id;
+  const s = card.scores || {}; const d = card.dna || {};
+  const hasSel = () => window.getSelection().toString().trim().length > 0;
+  let hookHtml = '';
+  if (card.hookSpoken || card.hookTextOverlay) {
+    hookHtml = '<div class="hook">' + (card.hookSpoken ? `<div><b>🎙 </b>${esc(card.hookSpoken)}</div>` : '') + (card.hookTextOverlay ? `<div><b>🔤 </b>${esc(card.hookTextOverlay)}</div>` : '') + '</div>';
+  } else if (card.primaryText) { hookHtml = `<div class="hook"><b>✍ </b>${esc(card.primaryText)}</div>`; }
+
+  el.innerHTML = `
+    <div class="tagline" title="click to add to your Brief">${esc(card.tagline)}</div>
+    ${card.emotionalInsight ? `<div class="insight-line" title="the raw human truth this ad is built on">🫀 ${esc(card.emotionalInsight)}</div>` : ''}
+    <div class="angle" title="click to add this angle to your Brief">“${esc(card.messagingAngle)}”</div>
+    ${card.visualIdea ? `<div class="visual" title="click to add this visual to your Brief"><b>🎬 </b>${esc(card.visualIdea)}</div>` : ''}
+    <div class="concept">${esc(card.concept)}</div>
+    ${hookHtml}
+    ${card.cta ? `<div class="cta" title="click to add this CTA to your Brief"><b>📣 CTA:</b> ${esc(card.cta)}</div>` : ''}
+    <div class="dna">
+      <span class="tag stage" data-k="awarenessStage" data-v="${esc(d.awarenessStage)}">${esc(stageName(d.awarenessStage))}</span>
+      <span class="tag mech" data-k="mechanic" data-v="${esc(d.mechanic)}">${esc(d.mechanic)}</span>
+      <span class="tag fmt" data-k="format" data-v="${esc(d.format)}">${esc(d.format)}</span>
+      <span class="tag" data-k="hookTactic" data-v="${esc(d.hookTactic || '')}">${esc(d.hookTactic || d.trigger || '')}</span>
+      <span class="tag" data-k="persona" data-v="${esc(d.persona)}">🎯 ${esc(personaName(d.persona))}</span>
+      <span class="tag" data-k="pain" data-v="${esc(d.pain)}">💢 ${esc(painLabel(d.pain))}</span>
+    </div>
+    <div class="meter">
+      <div class="meter-top"><span>Quality score</span><span class="meter-score" style="color:${barColor(s.overall || 0)}">${s.overall ?? '–'}</span></div>
+      <div class="bar"><span style="width:${s.overall || 0}%;background:${barColor(s.overall || 0)}"></span></div>
+    </div>
+    <div class="judge-note">🧑‍⚖️ ${esc(s.note || '')}</div>
+  `;
+  if (s.productTruth != null) el.querySelector('.meter').appendChild(axesEl(s));
+
+  // click a part to add it to the Brief (skipped while selecting text to comment)
+  el.querySelector('.tagline').addEventListener('click', () => { if (!hasSel()) pinPart('tagline', card.tagline); });
+  el.querySelector('.angle').addEventListener('click', () => { if (!hasSel()) pinPart('angle', card.messagingAngle); });
+  const vis = el.querySelector('.visual'); if (vis) vis.addEventListener('click', () => { if (!hasSel()) pinPart('visualIdea', card.visualIdea); });
+  const ctaEl = el.querySelector('.cta'); if (ctaEl) ctaEl.addEventListener('click', () => { if (!hasSel()) pinPart('cta', card.cta); });
+  el.querySelectorAll('.dna .tag').forEach((t) => t.addEventListener('click', () => { if (!hasSel() && t.dataset.v) pinPart(t.dataset.k, t.dataset.v); }));
+
+  const actions = document.createElement('div'); actions.className = 'card-actions';
+  const keep = document.createElement('button'); keep.className = 'keep'; keep.textContent = '❤ Save';
+  const disc = document.createElement('button'); disc.className = 'discard'; disc.textContent = '✕';
+  const pin = document.createElement('button'); pin.className = 'pin'; pin.textContent = '📌 Use as base'; pin.title = 'Copy this concept\'s setup into the Brief';
+  const crown = document.createElement('button'); crown.className = 'crown'; crown.textContent = '★ Finalize';
+  keep.addEventListener('click', () => react(card, true));
+  disc.addEventListener('click', () => react(card, false));
+  pin.addEventListener('click', () => pinFrame(card));
+  crown.addEventListener('click', () => openChampion(card));
+  actions.append(keep, disc, pin, crown); el.appendChild(actions);
+
+  // inline comments + regenerate (select any text on the card)
+  const cmts = cardComments[card.id] || [];
+  if (cmts.length) {
+    el.appendChild(commentsEl(cmts, () => { renderBoard(); }, card.id, cardComments));
+    const regen = document.createElement('button'); regen.className = 'regen-btn';
+    regen.textContent = `↻ Regenerate with ${cmts.length} comment${cmts.length > 1 ? 's' : ''}`;
+    regen.addEventListener('click', () => refineCardUI(card));
+    el.appendChild(regen);
+  } else {
+    const hint = document.createElement('div'); hint.className = 'hint-select'; hint.textContent = '✎ select any text to comment & regenerate';
+    el.appendChild(hint);
+  }
+
+  if (session.favorites.find((c) => c.id === card.id)) el.classList.add('kept');
+  return el;
+}
+
+// shared comment-list renderer (board + finalize modal)
+function commentsEl(cmts, rerender, id, store) {
+  const cwrap = document.createElement('div'); cwrap.className = 'comments';
+  cmts.forEach((cm, idx) => {
+    const it = document.createElement('div'); it.className = 'comment-item';
+    it.innerHTML = `<span class="crm" title="remove">✕</span><span class="cq">“${esc(cm.quote.length > 60 ? cm.quote.slice(0, 60) + '…' : cm.quote)}”</span> <span class="cc">${esc(cm.comment)}</span>`;
+    it.querySelector('.crm').addEventListener('click', () => { cmts.splice(idx, 1); if (!cmts.length) delete store[id]; rerender(); });
+    cwrap.appendChild(it);
+  });
+  return cwrap;
+}
+
+async function react(card, keep) {
+  try { const data = await callWithSession('POST', '/api/react', () => ({ sessionId: session.id, card, keep })); session = data.session; render(); if (keep) toast('Saved — reuse it for variations'); }
+  catch (e) { toast(e.message, true); }
+}
+
+// ---------- Brief (assembly chain) ----------
+const SLOT_HELP = {
+  persona: "Who you're talking to — the target customer.",
+  pain: "The core problem or desire the ad speaks to.",
+  awarenessStage: "How aware the viewer is — from unaware to ready-to-buy.",
+  angle: "The core truth/message the ad expresses.",
+  mechanic: "The creative move that makes the point land.",
+  format: "The type/structure of the static ad.",
+  hookTactic: "How the opening line is framed.",
+  tagline: "A line you want the concepts built around.",
+  visualIdea: "A specific visual/scene you want.",
+  cta: "The action you want the viewer to take — or 'No CTA' for top-of-funnel.",
+  product: "Whether the product itself should appear in the image.",
+  notes: "Any extra direction for the concepts.",
+};
+const BRIEF_GROUPS = [
+  { label: 'Target', keys: ['persona', 'pain', 'awarenessStage'] },
+  { label: 'Creative — optional', keys: ['angle', 'mechanic', 'format', 'hookTactic', 'tagline', 'visualIdea', 'cta', 'product', 'notes'] },
+];
+const WIDE_SLOTS = new Set(['angle', 'tagline', 'visualIdea', 'notes']);
+
+function chainSlots() {
+  const opt = (v, l) => ({ value: v, label: l });
+  return [
+    { key: 'persona', label: 'Persona', type: 'select', options: (deck.personas || []).map((p) => opt(p.id, p.name)) },
+    { key: 'pain', label: 'Pain / desire', type: 'select', options: (deck.pains || []).map((p) => opt(p.id, p.label)) },
+    { key: 'awarenessStage', label: 'Awareness stage', type: 'select', options: (TAX.stages || []).map((s) => opt(s.id, s.name)) },
+    { key: 'angle', label: 'Angle', type: 'text' },
+    { key: 'mechanic', label: 'Mechanic', type: 'select', options: (TAX.mechanics || []).map((m) => opt(m.name, m.name)) },
+    { key: 'format', label: 'Visual format', type: 'select', options: (TAX.formats || []).map((f) => opt(f.name, f.name)) },
+    { key: 'hookTactic', label: 'Hook tactic', type: 'select', options: (TAX.hookTactics || []).map((t) => opt(t, t)) },
+    { key: 'tagline', label: 'Seed tagline', type: 'text' },
+    { key: 'visualIdea', label: 'Visual idea', type: 'text' },
+    { key: 'cta', label: 'Call to action', type: 'select', options: [opt('none', 'No CTA')].concat((TAX.ctaOptions || []).map((c) => opt(c, c))) },
+    { key: 'product', label: 'Product in image', type: 'select', options: [opt('show', 'Show product'), opt('hide', "Don't show product")] },
+    { key: 'notes', label: 'Notes', type: 'text' },
+  ];
+}
+function displayPin(key, val) {
+  if (key === 'persona') return personaName(val);
+  if (key === 'pain') return painLabel(val);
+  if (key === 'awarenessStage') return stageName(val);
+  return val;
+}
+function infoIcon(key) { return `<span class="seg-info" title="${esc(SLOT_HELP[key] || '')}">i</span>`; }
+
+function buildSeg(slot, pins) {
+  const pinned = pins[slot.key] != null && pins[slot.key] !== '';
+  const seg = document.createElement('div');
+  seg.className = 'brief-seg' + (WIDE_SLOTS.has(slot.key) ? ' wide' : '') + (pinned ? ' pinned' : '');
+  const label = document.createElement('div'); label.className = 'seg-label';
+  label.innerHTML = `${esc(slot.label)} ${infoIcon(slot.key)}`;
+  seg.appendChild(label);
+  if (slot.type === 'select') {
+    const sel = document.createElement('select');
+    const open = document.createElement('option'); open.value = ''; open.textContent = '— any —'; sel.appendChild(open);
+    slot.options.forEach((o) => { const el = document.createElement('option'); el.value = o.value; el.textContent = o.label; sel.appendChild(el); });
+    sel.value = pins[slot.key] || '';
+    sel.addEventListener('change', () => savePins({ [slot.key]: sel.value }));
+    seg.appendChild(sel);
+  } else {
+    const inp = document.createElement('input'); inp.type = 'text'; inp.placeholder = 'optional…'; inp.value = pins[slot.key] || '';
+    inp.addEventListener('change', () => savePins({ [slot.key]: inp.value.trim() }));
+    seg.appendChild(inp);
+  }
+  return seg;
+}
+
+function chipTray(items, activeIds, getId, getLabel, getTitle, onToggle, onbrandFn) {
+  const tray = document.createElement('div'); tray.className = 'chip-tray';
+  items.forEach((it) => {
+    const id = getId(it);
+    const chip = document.createElement('button');
+    chip.className = 'chip' + (activeIds.includes(id) ? ' active' : '') + (onbrandFn && onbrandFn(it) ? ' onbrand' : '');
+    chip.textContent = getLabel(it); chip.title = getTitle(it);
+    chip.addEventListener('click', () => onToggle(id));
+    tray.appendChild(chip);
+  });
+  return tray;
+}
+
+function renderChain() {
+  const host = $('brief'); host.innerHTML = '';
+  const pins = session.pins || {};
+  const byKey = Object.fromEntries(chainSlots().map((s) => [s.key, s]));
+
+  BRIEF_GROUPS.forEach((g) => {
+    const grp = document.createElement('div'); grp.className = 'brief-group';
+    const gl = document.createElement('div'); gl.className = 'brief-group-label'; gl.textContent = g.label; grp.appendChild(gl);
+    g.keys.forEach((k) => { if (byKey[k]) grp.appendChild(buildSeg(byKey[k], pins)); });
+    host.appendChild(grp);
+  });
+
+  const toggles = document.createElement('div'); toggles.className = 'brief-toggles';
+  // constraints
+  const cg = document.createElement('div'); cg.className = 'brief-toggle-group';
+  cg.innerHTML = '<div class="tg-label">Constraints <span class="seg-info" title="Optional rules that force novelty (e.g. ≤6 words, as a confession).">i</span></div>';
+  cg.appendChild(chipTray(TAX.constraintCards || [], pins.constraints || [], (c) => c.id, (c) => c.label, (c) => c.instruction, (id) => {
+    const cur = (session.pins.constraints || []).slice(); const i = cur.indexOf(id); if (i === -1) cur.push(id); else cur.splice(i, 1); savePins({ constraints: cur });
+  }));
+  toggles.appendChild(cg);
+  // conversion enhancers (badges on the exported image)
+  const approved = (deck.approvedLanguage || []).join(' ').toLowerCase();
+  const eg = document.createElement('div'); eg.className = 'brief-toggle-group';
+  eg.innerHTML = '<div class="tg-label">Conversion enhancers <span class="seg-info" title="Integrated into the exported image in the form that fits the composition — a badge cluster, icon+text, a seal, a strip, or short trust text. Never woven into the copy. ✓ = matches this brand’s approved language.">i</span></div>';
+  eg.appendChild(chipTray(TAX.conversionEnhancers || [], pins.enhancers || [], (e) => e.id, (e) => e.label, () => 'Integrated into the exported image, placed to fit the composition', (id) => {
+    const cur = (session.pins.enhancers || []).slice(); const i = cur.indexOf(id); if (i === -1) cur.push(id); else cur.splice(i, 1); savePins({ enhancers: cur });
+  }, (e) => (e.match || []).some((m) => approved.includes(m))));
+  toggles.appendChild(eg);
+
+  // human-insight mining (the emotional core)
+  const ig = document.createElement('div'); ig.className = 'brief-toggle-group insight-group';
+  const igLabel = document.createElement('div'); igLabel.className = 'tg-label';
+  igLabel.innerHTML = 'Human insights <span class="seg-info" title="Imagine this persona’s inner life and surface the raw, unspoken truths (envy, shame, fear, grief). Pick the truest 3–4 to build ads on.">i</span> ';
+  const mineBtn = document.createElement('button'); mineBtn.className = 'ghost-btn mine-btn'; mineBtn.id = 'mine-btn';
+  mineBtn.textContent = '🔍 Mine insights';
+  mineBtn.addEventListener('click', mineInsightsUI);
+  igLabel.appendChild(mineBtn);
+  ig.appendChild(igLabel);
+  const mined = currentInsights();
+  if (mined.length) {
+    const activeIds = (pins.insights || []).map((i) => i.id);
+    ig.appendChild(chipTray(
+      mined, activeIds,
+      (i) => i.id,
+      (i) => `${insightEmoji(i.emotion)} ${truncate(i.tension, 42)}`,
+      (i) => `${i.emotion || ''}: ${i.tension}\n\nstings when: ${i.momentItStings || ''}\n\n${i.whyItsTrue || ''}`,
+      (id) => toggleInsight(id, mined),
+    ));
+  } else {
+    const hint = document.createElement('div'); hint.className = 'insight-hint';
+    hint.textContent = pins.persona ? 'Mine insights to surface this persona’s raw truths.' : 'Pick a persona, then mine insights.';
+    ig.appendChild(hint);
+  }
+  toggles.appendChild(ig);
+
+  host.appendChild(toggles);
+  if (briefCollapsed) updateBriefSummary();
+}
+
+const INSIGHT_EMOJI = { envy: '👀', shame: '🙈', fear: '😰', grief: '🥀', vanity: '💅', longing: '🌙', invisibility: '👻', pride: '🦚' };
+function insightEmoji(e) { return INSIGHT_EMOJI[e] || '🫀'; }
+function truncate(s, n) { s = String(s || ''); return s.length > n ? s.slice(0, n - 1) + '…' : s; }
+
+// Insights mined for the currently-pinned persona (+pain), from the session cache.
+function currentInsights() {
+  const p = session.pins || {};
+  if (!p.persona) return [];
+  const key = p.pain ? `${p.persona}::${p.pain}` : p.persona;
+  const entry = (session.insightsCache || {})[key];
+  return (entry && entry.insights) || [];
+}
+
+async function mineInsightsUI() {
+  const p = session.pins || {};
+  if (!p.persona) { toast('Pick a persona first — insights are mined for one person.', true); return; }
+  showLoader('Imagining her inner life…');
+  try {
+    const data = await callWithSession('POST', '/api/insights', () => ({ sessionId: session.id, persona: p.persona, pain: p.pain || '' }));
+    session = data.session;
+    renderChain();
+    toast(data.cached ? 'Loaded mined insights' : `Surfaced ${(data.insights || []).length} human truths`);
+  } catch (e) { handleErr(e); } finally { hideLoader(); }
+}
+
+function toggleInsight(id, mined) {
+  const cur = (session.pins.insights || []).slice();
+  const i = cur.findIndex((x) => x.id === id);
+  if (i === -1) {
+    if (cur.length >= 4) { toast('Pick up to 4 — the truest ones.', true); return; }
+    const obj = mined.find((x) => x.id === id);
+    if (obj) cur.push(obj);
+  } else {
+    cur.splice(i, 1);
+  }
+  savePins({ insights: cur });
+}
+
+// ---------- collapse the brief to a bar once concepts exist ----------
+function briefSummaryHtml() {
+  const p = session.pins || {};
+  const parts = [];
+  if (p.persona) parts.push('🎯 ' + esc(personaName(p.persona)));
+  if (p.pain) parts.push('💢 ' + esc(painLabel(p.pain)));
+  if (p.awarenessStage) parts.push('📶 ' + esc(stageName(p.awarenessStage)));
+  const creative = ['angle', 'mechanic', 'format', 'hookTactic', 'tagline', 'visualIdea', 'product'].filter((k) => p[k]).length + (p.cta ? 1 : 0);
+  if (creative) parts.push(`+${creative} creative`);
+  const ins = (p.insights || []).length; if (ins) parts.push(`🫀 ${ins} insight${ins > 1 ? 's' : ''}`);
+  const cons = (p.constraints || []).length; if (cons) parts.push(`${cons} constraint${cons > 1 ? 's' : ''}`);
+  const enh = (p.enhancers || []).length; if (enh) parts.push(`${enh} enhancer${enh > 1 ? 's' : ''}`);
+  const summary = parts.length ? parts.join('  ·  ') : 'Nothing set — anything goes';
+  return summary + ' &nbsp;<a class="brief-edit-link" id="brief-edit">edit ▸</a>';
+}
+function updateBriefSummary() {
+  const el = $('brief-summary'); if (!el) return;
+  el.innerHTML = briefSummaryHtml();
+  const link = $('brief-edit'); if (link) link.addEventListener('click', () => setBriefCollapse(false));
+}
+function setBriefCollapse(v) {
+  briefCollapsed = v;
+  const bar = document.querySelector('.brief-bar'); if (!bar) return;
+  bar.classList.toggle('collapsed', v);
+  $('brief-toggle').textContent = v ? '▸' : '▾';
+  if (v) updateBriefSummary();
+}
+async function savePins(partial) {
+  try { const data = await api('POST', '/api/pins', { sessionId: session.id, pins: partial }); session = data.session; renderChain(); }
+  catch (e) { if (isSessionErr(e)) { await recreateSession(); } else toast(e.message, true); }
+}
+function pinPart(key, value) { savePins({ [key]: value }); toast(`Added to Brief · ${key}: ${displayPin(key, value)}`); }
+function pinFrame(card) {
+  const d = card.dna || {};
+  savePins({ persona: d.persona, pain: d.pain, awarenessStage: d.awarenessStage, mechanic: d.mechanic, format: d.format, angle: card.messagingAngle });
+  toast('Copied this setup into your Brief — Generate or ask the partner to iterate');
+}
+
+// ---------- generate / surprise / variations ----------
+async function deal() {
+  showLoader('Generating & quality-checking concepts — cards appear as they pass…');
+  const board = $('board');
+  let sawCard = false;
+
+  // One streamed run: cards arrive as NDJSON lines and render the moment they pass.
+  const runStream = async () => {
+    const res = await fetch('/api/deal', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ sessionId: session.id, loadout: { count: toolbar.count, medium: toolbar.medium }, stream: true }),
+      signal: AbortSignal.timeout(240000),
+    });
+    if (!res.ok || !res.body) {
+      const d = await res.json().catch(() => ({}));
+      const err = new Error(d.error || `Request failed (${res.status})`); err.code = d.code; throw err;
+    }
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = '';
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      let nl;
+      while ((nl = buf.indexOf('\n')) >= 0) {
+        const line = buf.slice(0, nl).trim(); buf = buf.slice(nl + 1);
+        if (!line) continue;
+        let msg; try { msg = JSON.parse(line); } catch { continue; }
+        if (msg.type === 'card') {
+          if (!sawCard) { sawCard = true; hideLoader(); setBriefCollapse(true); }
+          board.appendChild(cardEl(msg.card));
+        } else if (msg.type === 'done') {
+          session = msg.session; render(); // authoritative re-render (reconciles order + accumulates)
+          $('board-status').textContent = statusLine(msg.stats);
+          if (msg.stats && msg.stats.passed === 0) toast('No concepts cleared the quality bar — try loosening the brief (fewer constraints, allow the product, or a different persona/pain).', true);
+        } else if (msg.type === 'error') {
+          throw new Error(msg.error || 'Generation failed');
+        }
+      }
+    }
+  };
+
+  try {
+    await runStream();
+  } catch (e) {
+    // Stale session (server restarted) → recreate once and retry, but only if nothing rendered yet.
+    if (isSessionErr(e) && !sawCard) { try { await recreateSession(); await runStream(); } catch (e2) { handleErr(e2); } }
+    else handleErr(e);
+  } finally { hideLoader(); }
+}
+async function breed() {
+  if (!session.favorites.length) return toast('Save at least one concept first.', true);
+  showLoader('Creating variations — this can take up to ~90s…');
+  try {
+    const data = await callWithSession('POST', '/api/breed', () => ({ sessionId: session.id, parents: session.favorites, loadout: { count: toolbar.count, medium: toolbar.medium } }));
+    session = data.session; render();
+    $('board-status').textContent = statusLine(data.stats);
+    if (data.stats && data.stats.passed === 0) toast('No variations cleared the quality bar — try again or loosen the brief.', true);
+  } catch (e) { handleErr(e); } finally { hideLoader(); }
+}
+function spin() {
+  const roll = {};
+  ['mechanic', 'format', 'hookTactic'].forEach((key) => {
+    if (key === 'mechanic') roll[key] = randOf(TAX.mechanics).name;
+    else if (key === 'hookTactic') roll[key] = randOf(TAX.hookTactics);
+    else { const pool = TAX.formats.filter(mediumOk); roll[key] = randOf(pool.length ? pool : TAX.formats).name; }
+  });
+  savePins(roll); toast('✨ Filled the open creative choices — hit Generate');
+}
+function statusLine(stats) { return stats ? `${stats.passed} passed the quality check of ${stats.generated} generated` : ''; }
+function handleErr(e) { if (e.code === 'NO_API_KEY') toast('No API key. Add ANTHROPIC_API_KEY then restart.', true); else toast(e.message, true); }
+
+// ---------- finalize (champion) ----------
+async function openChampion(card) {
+  showLoader('Finalizing the concept…');
+  try { const data = await callWithSession('POST', '/api/champion', () => ({ sessionId: session.id, card })); session = data.session; renderChampionModal(card, data.champion); render(); }
+  catch (e) { handleErr(e); } finally { hideLoader(); }
+}
+function renderChampionModal(card, champ) {
+  currentChampion = { card, champ };
+  const body = $('champion-body');
+  // Hero tagline picker: the headline + all tagline variants, de-duplicated. The
+  // selected one becomes the hero headline used by the export / generated image.
+  const heroOpts = [];
+  const seen = new Set();
+  [champ.headline, ...(champ.taglines || [])].forEach((t) => {
+    const v = (t || '').trim();
+    if (v && !seen.has(v.toLowerCase())) { seen.add(v.toLowerCase()); heroOpts.push(v); }
+  });
+  if (!heroOpts.length && champ.headline) heroOpts.push(champ.headline);
+  const radios = heroOpts.map((t, i) =>
+    `<label class="tl-opt"><input type="radio" name="hero-tagline" value="${i}"${t === champ.headline ? ' checked' : ''}><span>${esc(t)}</span></label>`).join('');
+  let hookBlock = '';
+  if (champ.primaryText) hookBlock = `<h3>On-image copy</h3><div class="block">${esc(champ.primaryText)}</div>`;
+  const visual = card.visualIdea ? `<h3>Visual idea</h3><div class="block">🎬 ${esc(card.visualIdea)}</div>` : '';
+  const ctaBlock = card.cta ? `<h3>Call to action</h3><div class="block">📣 ${esc(card.cta)}</div>` : '';
+  body.className = 'champ';
+  body.innerHTML = `
+    <h2>★ Finalized concept</h2>
+    <div class="headline" id="champ-headline">${esc(champ.headline)}</div>
+    <h3>Hero tagline <span class="hint-inline">— pick the one to build the ad on</span></h3>
+    <div class="tagline-picker" id="tagline-picker">${radios}</div>
+    <h3>Concept</h3><div class="block">${esc(champ.concept)}</div>
+    ${visual}${ctaBlock}${hookBlock}
+    <h3>Why it works</h3><div class="block">${esc(champ.whyItWorks)}</div>
+    <h3>Compliance</h3><div class="block compliance">✓ ${esc(champ.complianceCheck)}</div>
+    <div id="champ-edit"></div>
+    <div class="export-row">
+      <span class="model-badge">Nano Banana Pro · templated</span>
+      <button class="primary-btn" id="export-btn">Build ad from template →</button>
+    </div>
+    <input id="ref-input" class="ref-input" type="text" placeholder="Product reference image URL(s) for image-to-image — comma separated" value="${esc((deck.referenceImages || []).join(', '))}" />
+    <div class="export-result" id="export-result"></div>`;
+
+  // inline edit/comment on the finalized concept
+  const editHost = $('champ-edit');
+  const cmts = championComments[card.id] || [];
+  if (cmts.length) {
+    editHost.appendChild(commentsEl(cmts, () => renderChampionModal(currentChampion.card, currentChampion.champ), card.id, championComments));
+    const regen = document.createElement('button'); regen.className = 'regen-btn';
+    regen.textContent = `↻ Regenerate finalized concept (${cmts.length})`;
+    regen.addEventListener('click', () => refineChampionUI(card, champ));
+    editHost.appendChild(regen);
+  } else {
+    const hint = document.createElement('div'); hint.className = 'hint-select'; hint.textContent = '✎ select any text above to comment & regenerate this concept';
+    editHost.appendChild(hint);
+  }
+
+  // Switching the hero tagline updates the headline used everywhere downstream (export → image).
+  const picker = $('tagline-picker');
+  if (picker) picker.addEventListener('change', (e) => {
+    const idx = Number(e.target.value);
+    const val = heroOpts[idx];
+    if (val == null) return;
+    currentChampion.champ.headline = val;
+    const h = $('champ-headline'); if (h) h.textContent = val;
+    // If the ad was already built, the prompt used the old hero — nudge a rebuild.
+    const exResult = $('export-result');
+    if (exResult && exResult.innerHTML.trim()) toast('Hero tagline changed — click “Build ad from template” again to use it.');
+  });
+
+  $('export-btn').addEventListener('click', () => exportConcept(card, currentChampion.champ));
+  $('champion-modal').hidden = false;
+}
+async function refineChampionUI(card, champ) {
+  const comments = championComments[card.id] || [];
+  if (!comments.length) return;
+  showLoader('Regenerating the finalized concept…');
+  try {
+    const data = await callWithSession('POST', '/api/refine-champion', () => ({ sessionId: session.id, card, champion: champ, comments }));
+    session = data.session; delete championComments[card.id];
+    renderChampionModal(card, data.champion); render();
+    toast('↻ Finalized concept updated from your comments');
+  } catch (e) { handleErr(e); } finally { hideLoader(); }
+}
+let AD_TEMPLATES = null;
+async function ensureTemplates() {
+  if (AD_TEMPLATES) return AD_TEMPLATES;
+  try { const d = await api('GET', '/api/templates'); AD_TEMPLATES = d.templates || []; }
+  catch { AD_TEMPLATES = []; }
+  return AD_TEMPLATES;
+}
+
+async function exportConcept(card, champ, templateNumber = null) {
+  const referenceImages = ($('ref-input') ? $('ref-input').value : '').split(',').map((s) => s.trim()).filter(Boolean);
+  showLoader(templateNumber ? 'Rebuilding the ad from the chosen template…' : 'Filling the ad template with your concept…');
+  try {
+    const data = await callWithSession('POST', '/api/export', () => ({ sessionId: session.id, card, champion: champ, referenceImages, templateNumber }));
+    renderExportResult(data, card, champ);
+  } catch (e) { toast(e.message, true); } finally { hideLoader(); }
+}
+
+function renderExportResult(data, card, champ) {
+  const rec = data.record || {};
+  const s = rec.settings || {};
+  const tpl = rec.template || {};
+  const zones = (rec.text_zones || []).map((z) => `${esc(z.element)} @ ${esc(z.position)}: “${esc(z.text)}”`).join('<br>');
+  const refs = rec.reference_images || [];
+  const badges = rec.enhancers || [];
+  $('export-result').innerHTML = `
+    <div class="tpl-box">
+      ${tpl.preview_image_url ? `<img class="tpl-thumb" src="${esc(tpl.preview_image_url)}" alt="template preview" />` : '<div class="tpl-thumb tpl-thumb-empty">no preview</div>'}
+      <div class="tpl-info">
+        <div class="tpl-name">Template #${esc(String(tpl.number || ''))} · ${esc(tpl.name || '')} ${tpl.auto_suggested ? '<span class="tpl-auto">auto-matched</span>' : '<span class="tpl-manual">your pick</span>'}</div>
+        <div class="tpl-cat">${esc(tpl.category || '')} · ${esc(tpl.aspect_ratio || s.aspect_ratio || '')}</div>
+        <label class="ex-label" for="tpl-sel">Swap layout template <span id="tpl-count" class="tpl-count"></span></label>
+        <select id="tpl-sel"><option>loading templates…</option></select>
+        <label class="tpl-all-label"><input type="checkbox" id="tpl-all" /> show all templates</label>
+      </div>
+    </div>
+    <div class="ex-meta">${esc(rec.format || '')} · ${esc(s.aspect_ratio || '')} · ${esc(s.model || '')}</div>
+    <label class="ex-label">Final prompt (auto-sent to Nano Banana Pro)</label>
+    <textarea class="ex-prompt" id="ex-prompt" readonly>${esc(rec.prompt || '')}</textarea>
+    <div class="gen-row">
+      <button class="ghost-btn" id="ex-copy">📋 Copy prompt</button>
+      <select id="gen-resolution"><option value="1K">1K (fast)</option><option value="2K" selected>2K</option><option value="4K">4K</option></select>
+      <button class="primary-btn" id="gen-image-btn">🎨 Generate image →</button>
+    </div>
+    <div id="gen-image-result"></div>
+    <label class="ex-label">Negative prompt (folded into the “Avoid:” line)</label>
+    <div class="ex-box">${esc(rec.negative_prompt || '')}</div>
+    ${badges.length ? `<label class="ex-label">Trust elements woven into the layout</label><div class="ex-box">${badges.map(esc).join(' · ')}</div>` : ''}
+    ${zones ? `<label class="ex-label">Copy placed in the ad</label><div class="ex-box">${zones}</div>` : ''}
+    ${refs.length ? `<label class="ex-label">Reference images (used for image-to-image)</label><div class="ex-box">${refs.map(esc).join('<br>')}</div>` : '<div class="ex-warn">⚠ No product reference image — paste product photo URL(s) above and re-export for accurate product fidelity.</div>'}
+    ${data.file ? `<div class="export-saved">✓ Saved to <b>${esc(data.file)}</b></div>` : (data.error ? `<div class="ex-warn">⚠ ${esc(data.error)}</div>` : '')}
+  `;
+  const copyBtn = $('ex-copy');
+  if (copyBtn) copyBtn.addEventListener('click', () => {
+    const t = $('ex-prompt'); t.select();
+    const done = () => toast('Prompt copied');
+    if (navigator.clipboard) navigator.clipboard.writeText(rec.prompt || '').then(done).catch(() => { document.execCommand('copy'); done(); });
+    else { document.execCommand('copy'); done(); }
+  });
+  $('gen-image-btn').addEventListener('click', () => generateImageUI(rec, refs));
+
+  // Populate the template picker — auto-limited to the best matches for THIS concept
+  // (by brief category + tagline/copy overlap), with a "show all" toggle. Override → re-export.
+  const SHORTLIST = 15;
+  ensureTemplates().then((tpls) => {
+    const sel = $('tpl-sel');
+    if (!sel) return;
+    if (!tpls.length) { sel.innerHTML = '<option>no templates available</option>'; sel.disabled = true; return; }
+    const ranked = rankTemplatesForConcept(card, rec, tpls);
+    const optHtml = (t) => `<option value="${t.number}"${t.number === tpl.number ? ' selected' : ''}>#${t.number} ${esc(t.name)} (${esc(t.aspect_ratio)})</option>`;
+    const populate = (showAll) => {
+      if (showAll) {
+        const byCat = {};
+        tpls.forEach((t) => { (byCat[t.category] = byCat[t.category] || []).push(t); });
+        sel.innerHTML = Object.keys(byCat).sort().map((cat) =>
+          `<optgroup label="${esc(cat)}">` + byCat[cat].sort((a, b) => a.number - b.number).map(optHtml).join('') + '</optgroup>').join('');
+      } else {
+        let top = ranked.slice(0, SHORTLIST);
+        if (!top.some((t) => t.number === tpl.number)) { const cur = tpls.find((t) => t.number === tpl.number); if (cur) top = [cur, ...top]; }
+        sel.innerHTML = `<optgroup label="★ Best matches for this concept">` + top.map(optHtml).join('') + '</optgroup>';
+      }
+      const cnt = $('tpl-count');
+      if (cnt) cnt.textContent = showAll ? `(all ${tpls.length})` : `(${Math.min(SHORTLIST, ranked.length)} best of ${tpls.length})`;
+    };
+    const allCb = $('tpl-all');
+    populate(allCb && allCb.checked);
+    if (allCb) allCb.addEventListener('change', () => populate(allCb.checked));
+    sel.addEventListener('change', () => {
+      const num = Number(sel.value);
+      if (num && num !== tpl.number && card && champ) exportConcept(card, champ, num);
+    });
+  });
+}
+
+// Rank templates by fit to a concept: same category (from the brief) first, then
+// keyword/signal overlap with the tagline + copy. Zero-cost, instant, client-side.
+function rankTemplatesForConcept(card, rec, tpls) {
+  const d = (card && card.dna) || {};
+  const cat = rec && rec.template && rec.template.category;
+  const hay = [card.tagline, card.emotionalInsight, card.messagingAngle, card.concept, card.cta, d.mechanic, d.hookTactic, d.format]
+    .filter(Boolean).join(' ').toLowerCase();
+  const hasNum = /\d/.test(`${card.tagline || ''} ${card.messagingAngle || ''} ${card.concept || ''}`);
+  const wantTestimonial = /testimonial|review|quote|verified|["“”]|—\s*\w|\bsaid\b|\bshe told\b/.test(hay);
+  const wantBeforeAfter = /before|after|used to|now i|weeks|transform|no longer/.test(hay);
+  const wantText = /text|message|note|screenshot|dm|comment|search/.test(hay);
+  const scored = tpls.map((t) => {
+    const name = (t.name || '').toLowerCase();
+    let s = 0;
+    if (cat && t.category === cat) s += 100;
+    name.split(/\W+/).filter((w) => w.length > 3).forEach((w) => { if (hay.includes(w)) s += 6; });
+    if (hasNum && /stat|number|result|numeral|%/.test(name)) s += 22;
+    if (wantTestimonial && /testimonial|review|quote|note|screenshot/.test(name)) s += 22;
+    if (wantBeforeAfter && /before|after|comparison|transform/.test(name)) s += 22;
+    if (wantText && /text|message|note|screenshot|chat|comment|search|handwritten/.test(name)) s += 14;
+    return { t, s };
+  });
+  scored.sort((a, b) => b.s - a.s || a.t.number - b.t.number);
+  return scored.map((x) => x.t);
+}
+
+async function generateImageUI(rec, refs) {
+  const host = $('gen-image-result');
+  const btn = $('gen-image-btn');
+  const resolution = $('gen-resolution').value;
+  btn.disabled = true; btn.textContent = '🎨 Generating…';
+  host.innerHTML = '<div class="gen-loading">Rendering with Nano Banana Pro — usually 10–30s…</div>';
+  try {
+    const data = await api('POST', '/api/generate-image', {
+      prompt: rec.prompt,
+      referenceImages: refs,
+      aspectRatio: rec.settings?.aspect_ratio,
+      resolution,
+    });
+    const img = (data.images || [])[0];
+    if (!img) { host.innerHTML = '<div class="ex-warn">⚠ No image returned.</div>'; return; }
+    host.innerHTML = `
+      <img class="gen-image" src="${esc(img.url)}" alt="Generated ad image" />
+      <div class="gen-image-actions">
+        <a class="ghost-btn" href="${esc(img.url)}" target="_blank" rel="noopener">↗ Open full size</a>
+        <a class="ghost-btn" href="${esc(img.url)}" download>⬇ Download</a>
+        <button class="ghost-btn" id="gen-regen-btn">↻ Regenerate</button>
+      </div>
+      ${data.description ? `<div class="gen-image-desc">${esc(data.description)}</div>` : ''}
+    `;
+    $('gen-regen-btn').addEventListener('click', () => generateImageUI(rec, refs));
+    toast('Image generated');
+  } catch (e) {
+    const netErr = /failed to fetch|networkerror|load failed/i.test(e.message || '');
+    const msg = netErr
+      ? "Couldn't reach the server — it may have restarted or stopped. Reload the page (Ctrl+F5); if it persists, restart the dev server (node server.js)."
+      : e.message;
+    host.innerHTML = `<div class="ex-warn">⚠ ${esc(msg)}</div>`;
+  } finally {
+    btn.disabled = false; btn.textContent = '🎨 Generate image →';
+  }
+}
+
+// ---------- side lists ----------
+function renderFavorites() {
+  const fav = $('favorites'); fav.innerHTML = '';
+  if (!session.favorites.length) fav.innerHTML = '<div class="mini empty">Save concepts to reuse them for variations.</div>';
+  else session.favorites.forEach((c) => { const m = document.createElement('div'); m.className = 'mini'; m.innerHTML = `<span class="mini-tag">${esc(c.tagline)}</span><span class="mini-sub">${esc(c.dna?.mechanic || '')} · ${esc(c.dna?.format || '')} · ${c.scores?.overall ?? ''}</span>`; fav.appendChild(m); });
+  $('fav-count').textContent = session.favorites.length;
+}
+function renderChampions() {
+  const ch = $('champions'); ch.innerHTML = '';
+  if (!session.champions.length) ch.innerHTML = '<div class="mini empty">Finalize a concept to lock it in.</div>';
+  else session.champions.forEach((c) => { const m = document.createElement('div'); m.className = 'mini'; m.innerHTML = `<span class="mini-tag champ-link">${esc(c.champion.headline)}</span><span class="mini-sub">${esc(c.dna?.format || '')}</span>`; m.querySelector('.champ-link').addEventListener('click', () => renderChampionModal({ id: c.id, dna: c.dna, visualIdea: '' }, c.champion)); ch.appendChild(m); });
+  $('champ-count').textContent = session.champions.length;
+}
+
+// ---------- inline comments → regenerate (board + finalized) ----------
+function onTextSelect(e) {
+  if (e && e.target && e.target.closest && e.target.closest('.comment-widget')) return;
+  setTimeout(() => {
+    const sel = window.getSelection();
+    const text = sel ? sel.toString().trim() : '';
+    if (!text || text.length < 2) return;
+    let node = sel.anchorNode; if (node && node.nodeType === 3) node = node.parentElement;
+    if (!node || !node.closest) return;
+    const rect = sel.getRangeAt(0).getBoundingClientRect();
+    const boardCard = node.closest('#board .card');
+    if (boardCard && boardCard.dataset.id) { showCommentWidget(boardCard.dataset.id, text, rect, 'board'); return; }
+    if (node.closest('#champion-body') && currentChampion) { showCommentWidget(currentChampion.card.id, text, rect, 'champion'); }
+  }, 0);
+}
+function closeCommentWidget() { if (commentWidget) { commentWidget.remove(); commentWidget = null; } }
+function showCommentWidget(id, quote, rect, mode) {
+  closeCommentWidget();
+  const store = mode === 'champion' ? championComments : cardComments;
+  const w = document.createElement('div'); w.className = 'comment-widget';
+  w.innerHTML = `
+    <div class="cw-quote">“${esc(quote.length > 120 ? quote.slice(0, 120) + '…' : quote)}”</div>
+    <textarea placeholder="What should change about this? (e.g. make it warmer, shorter, more specific)"></textarea>
+    <div class="cw-actions"><button class="ghost-btn cw-cancel">Cancel</button><button class="primary-btn cw-add">Add comment</button></div>`;
+  document.body.appendChild(w);
+  w.style.top = Math.min(rect.bottom + 6, window.innerHeight - 170) + 'px';
+  w.style.left = Math.min(Math.max(rect.left, 8), window.innerWidth - 290) + 'px';
+  const ta = w.querySelector('textarea'); ta.focus();
+  const add = () => {
+    const comment = ta.value.trim(); if (!comment) { ta.focus(); return; }
+    (store[id] = store[id] || []).push({ quote, comment });
+    window.getSelection().removeAllRanges(); closeCommentWidget();
+    if (mode === 'champion' && currentChampion) renderChampionModal(currentChampion.card, currentChampion.champ);
+    else renderBoard();
+    toast('💬 Comment added — hit ↻ Regenerate');
+  };
+  w.querySelector('.cw-add').addEventListener('click', add);
+  w.querySelector('.cw-cancel').addEventListener('click', () => { window.getSelection().removeAllRanges(); closeCommentWidget(); });
+  ta.addEventListener('keydown', (ev) => { if (ev.key === 'Enter' && (ev.metaKey || ev.ctrlKey)) add(); if (ev.key === 'Escape') closeCommentWidget(); });
+  commentWidget = w;
+}
+async function refineCardUI(card) {
+  const comments = cardComments[card.id] || [];
+  if (!comments.length) return;
+  showLoader('Regenerating with your comments…');
+  try {
+    const data = await callWithSession('POST', '/api/refine', () => ({ sessionId: session.id, card, comments }));
+    session = data.session; delete cardComments[card.id]; render();
+    toast('↻ Concept regenerated from your comments');
+  } catch (e) { handleErr(e); } finally { hideLoader(); }
+}
+
+// ---------- wire up ----------
+$('start-btn').addEventListener('click', startSession);
+$('new-session-btn').addEventListener('click', () => location.reload());
+$('chat-send').addEventListener('click', sendChat);
+$('chat-input').addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); } });
+$('spin-btn').addEventListener('click', spin);
+$('deal-btn').addEventListener('click', deal);
+$('breed-btn').addEventListener('click', breed);
+$('brief-toggle').addEventListener('click', () => setBriefCollapse(!briefCollapsed));
+$('chain-clear').addEventListener('click', () => { const cleared = { constraints: [], enhancers: [], insights: [] }; chainSlots().forEach((s) => { cleared[s.key] = ''; }); savePins(cleared); });
+document.addEventListener('mouseup', onTextSelect);
+document.addEventListener('mousedown', (e) => { if (commentWidget && !e.target.closest('.comment-widget')) closeCommentWidget(); });
+$('champ-close').addEventListener('click', () => { $('champion-modal').hidden = true; });
+$('champion-modal').addEventListener('click', (e) => { if (e.target.id === 'champion-modal') $('champion-modal').hidden = true; });
+$('count-range').addEventListener('input', (e) => { toolbar.count = Number(e.target.value); $('count-label').textContent = e.target.value; });
+
+init();
