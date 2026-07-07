@@ -65,7 +65,7 @@ function hideLoader() { $('loader').hidden = true; }
 function personaName(id) { const p = (deck?.personas || []).find((x) => x.id === id); return p ? p.name : id; }
 function painLabel(id) { const p = (deck?.pains || []).find((x) => x.id === id); return p ? p.label : id; }
 function stageName(id) { const s = (TAX?.stages || []).find((x) => x.id === id); return s ? s.name : id; }
-function barColor(v) { return v >= 85 ? 'var(--green)' : v >= 70 ? 'var(--gold)' : 'var(--red)'; }
+function barColor(v) { return v >= 85 ? 'var(--green)' : v >= 70 ? 'var(--warn-text)' : 'var(--wine)'; }
 function randOf(a) { return a[Math.floor(Math.random() * a.length)]; }
 function mediumOk(f) { if (!f || toolbar.medium === 'Any') return true; return f.medium === toolbar.medium || f.medium === 'Video/Static'; }
 function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
@@ -384,7 +384,7 @@ function cardEl(card) {
   const actions = document.createElement('div'); actions.className = 'card-actions';
   const variants = document.createElement('button'); variants.className = 'variants'; variants.textContent = '🧬 Make variants';
   variants.title = 'Generate 3 variations of this concept';
-  const crown = document.createElement('button'); crown.className = 'crown'; crown.textContent = '★ Finalize';
+  const crown = document.createElement('button'); crown.className = 'crown'; crown.textContent = '★ Finalize'; crown.setAttribute('data-glow', '');
   if (streaming) { variants.disabled = true; crown.disabled = true; } // mid-stream cards act after the run settles
   variants.addEventListener('click', () => makeVariants(card, variants));
   crown.addEventListener('click', () => openChampion(card));
@@ -833,9 +833,10 @@ function renderChampionModal(card, champ) {
   const visualText = champ.visualIdea || card.visualIdea;
   const visual = visualText ? `<h3>Visual direction</h3><div class="block">🎬 ${esc(visualText)}</div>` : '';
   const ctaBlock = card.cta ? `<h3>Call to action</h3><div class="block">📣 ${esc(card.cta)}</div>` : '';
+  modalReturnFocus = document.activeElement;
   body.className = 'champ';
   body.innerHTML = `
-    <h2>★ Finalized concept</h2>
+    <h2>★ Finalized concept <svg class="check-draw" viewBox="0 0 20 20" aria-hidden="true"><path d="M4 10.5l4 4 8-9"/></svg></h2>
     <div class="headline" id="champ-headline">${esc(champ.headline)}</div>
     <h3>Hero tagline <span class="hint-inline">— pick the one to build the ad on</span></h3>
     <div class="tagline-picker" id="tagline-picker">${radios}</div>
@@ -846,7 +847,7 @@ function renderChampionModal(card, champ) {
     <div id="champ-edit"></div>
     <div class="export-row">
       <span class="model-badge">Nano Banana Pro · templated</span>
-      <button class="primary-btn" id="export-btn">Build ad from template →</button>
+      <button class="primary-btn" id="export-btn" data-glow>Build ad from template →</button>
     </div>
     <input id="ref-input" class="ref-input" type="text" placeholder="Product reference image URL(s) for image-to-image — comma separated" value="${esc((deck.referenceImages || []).join(', '))}" />
     <div class="export-result" id="export-result"></div>`;
@@ -945,7 +946,7 @@ function renderExportResult(data, card, champ) {
     <div class="gen-row">
       <button class="ghost-btn" id="ex-copy">📋 Copy prompt</button>
       <select id="gen-resolution"><option value="1K">1K (fast)</option><option value="2K" selected>2K</option><option value="4K">4K</option></select>
-      <button class="primary-btn" id="gen-image-btn">🎨 Generate image →</button>
+      <button class="primary-btn" id="gen-image-btn" data-glow>🎨 Generate image →</button>
     </div>
     <div id="gen-image-result"></div>
     <label class="ex-label">Negative prompt (folded into the “Avoid:” line)</label>
@@ -1137,6 +1138,20 @@ async function refineCardUI(card) {
 
 // ---------- wire up ----------
 $('start-btn').addEventListener('click', startSession);
+// TAE ButtonGlowTracker (vanilla port): pointer-tracked radial glow on [data-glow]
+let glowBtn = null;
+document.addEventListener('pointermove', (e) => {
+  const btn = e.target && e.target.closest ? e.target.closest('[data-glow]') : null;
+  if (glowBtn && glowBtn !== btn) { glowBtn.style.removeProperty('--glow-o'); glowBtn = null; }
+  if (!btn) return;
+  glowBtn = btn;
+  const r = btn.getBoundingClientRect();
+  btn.style.setProperty('--gx', `${e.clientX - r.left}px`);
+  btn.style.setProperty('--gy', `${e.clientY - r.top}px`);
+  btn.style.setProperty('--gw', `${Math.max(r.width * 0.65, 30)}px`);
+  btn.style.setProperty('--gh', `${Math.max(r.height * 1.4, 22)}px`);
+  btn.style.setProperty('--glow-o', '1');
+});
 $('new-session-btn').addEventListener('click', () => location.reload());
 $('chat-send').addEventListener('click', () => sendChat());
 $('chat-input').addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); } });
@@ -1171,14 +1186,19 @@ document.addEventListener('keydown', (e) => {
   if (commentWidget) { closeCommentWidget(); return; }
   if (ui.extrasOpen) { toggleExtras(false); return; }
   if (ui.leversOpen) { toggleLevers(false); return; }
-  const modal = $('champion-modal');
-  if (!modal.hidden) modal.hidden = true;
+  if (!$('champion-modal').hidden) closeChampionModal();
 });
+let modalReturnFocus = null;
+function closeChampionModal() {
+  $('champion-modal').hidden = true;
+  if (modalReturnFocus && modalReturnFocus.focus) { try { modalReturnFocus.focus(); } catch { /* gone */ } }
+  modalReturnFocus = null;
+}
 $('chain-clear').addEventListener('click', () => { const cleared = { constraints: [], enhancers: [], insights: [] }; chainSlots().forEach((s) => { cleared[s.key] = ''; }); savePins(cleared); });
 document.addEventListener('mouseup', onTextSelect);
 document.addEventListener('mousedown', (e) => { if (commentWidget && !e.target.closest('.comment-widget')) closeCommentWidget(); });
-$('champ-close').addEventListener('click', () => { $('champion-modal').hidden = true; });
-$('champion-modal').addEventListener('click', (e) => { if (e.target.id === 'champion-modal') $('champion-modal').hidden = true; });
+$('champ-close').addEventListener('click', closeChampionModal);
+$('champion-modal').addEventListener('click', (e) => { if (e.target.id === 'champion-modal') closeChampionModal(); });
 $('count-range').addEventListener('input', (e) => { toolbar.count = Number(e.target.value); $('count-label').textContent = e.target.value; });
 
 init();
