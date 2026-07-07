@@ -223,13 +223,23 @@ async function handleApi(req, res, pathname) {
     const body = await readBody(req);
     const s = sessionStore.getSession(body.sessionId);
     if (!s) return sendJson(res, 404, { error: 'Session not found' });
-    const message = String(body.message || '').trim();
-    if (!message) return sendJson(res, 400, { error: 'message required' });
     const deck = await sessionStore.ensureDeck(body.sessionId);
     if (!deck) return sendJson(res, 404, { error: 'Session deck unavailable — start a new session.' });
 
-    const priorChat = s.chat.slice();
-    sessionStore.addChat(s, 'user', message);
+    // Regenerate: re-run the last user turn without duplicating history.
+    let message; let priorChat;
+    if (body.retry === true) {
+      while (s.chat.length && s.chat[s.chat.length - 1].role === 'assistant') s.chat.pop();
+      const idx = s.chat.map((m) => m.role).lastIndexOf('user');
+      if (idx === -1) return sendJson(res, 400, { error: 'Nothing to regenerate yet.' });
+      message = s.chat[idx].text;
+      priorChat = s.chat.slice(0, idx);
+    } else {
+      message = String(body.message || '').trim();
+      if (!message) return sendJson(res, 400, { error: 'message required' });
+      priorChat = s.chat.slice();
+      sessionStore.addChat(s, 'user', message);
+    }
     const turn = await directorTurn({ deck, message, chat: priorChat, board: s.board, pins: s.pins });
 
     let judged = [];
@@ -238,7 +248,9 @@ async function handleApi(req, res, pathname) {
       sessionStore.upsertCards(s, judged);
     }
     if (turn.pins) sessionStore.setPins(s, turn.pins);
-    sessionStore.addChat(s, 'assistant', turn.reply);
+    // Card refs ride on the chat entry so replies stay linked to the concepts they made.
+    sessionStore.addChat(s, 'assistant', turn.reply,
+      judged.length ? { cards: judged.map((c) => ({ id: c.id, tagline: c.tagline })) } : undefined);
     sessionStore.save(s);
     return sendJson(res, 200, {
       reply: turn.reply, cards: judged, pins: s.pins, suggestions: turn.suggestions, session: sessionView(s),

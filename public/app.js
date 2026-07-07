@@ -16,18 +16,26 @@ const toolbar = { count: 4, medium: 'Static' }; // static-image tool
 const $ = (id) => document.getElementById(id);
 
 // ---------- api ----------
-async function api(method, path, body) {
+async function api(method, path, body, opts = {}) {
   let res;
+  // Generation can take up to ~2 min on rich brands; cap so a dropped connection
+  // fails LOUDLY instead of hanging the loader forever. An optional caller signal
+  // (opts.signal) lets the UI offer a Stop button.
+  const timeout = AbortSignal.timeout(240000);
+  const signal = opts.signal
+    ? (AbortSignal.any ? AbortSignal.any([timeout, opts.signal]) : opts.signal)
+    : timeout;
   try {
     res = await fetch(path, {
       method,
       headers: body ? { 'content-type': 'application/json' } : undefined,
       body: body ? JSON.stringify(body) : undefined,
-      // Generation can take up to ~2 min on rich brands; cap so a dropped connection
-      // fails LOUDLY instead of hanging the loader forever.
-      signal: AbortSignal.timeout(240000),
+      signal,
     });
   } catch (err) {
+    if (opts.signal && opts.signal.aborted) {
+      const e = new Error('Stopped'); e.aborted = true; throw e;
+    }
     if (err && (err.name === 'TimeoutError' || err.name === 'AbortError')) {
       throw new Error('The server took too long or the connection dropped. If the dev server restarted, reload the page (Ctrl+F5) and try again.');
     }
@@ -43,9 +51,9 @@ async function recreateSession() {
   const data = await api('POST', '/api/session', { slug: brandSlug });
   session = data.session; deck = data.deck; toast('Server had restarted — recreated your session.');
 }
-async function callWithSession(method, path, makeBody) {
-  try { return await api(method, path, makeBody()); }
-  catch (e) { if (isSessionErr(e)) { await recreateSession(); return await api(method, path, makeBody()); } throw e; }
+async function callWithSession(method, path, makeBody, opts) {
+  try { return await api(method, path, makeBody(), opts); }
+  catch (e) { if (isSessionErr(e)) { await recreateSession(); return await api(method, path, makeBody(), opts); } throw e; }
 }
 
 // ---------- helpers ----------
@@ -101,42 +109,153 @@ async function startSession() {
 }
 
 // ---------- master render ----------
-function render() { renderBoard(); renderChain(); renderFavorites(); renderChampions(); syncStats(); }
+function render() { renderBoard(); renderChain(); syncStats(); }
 function syncStats() {
   const b = (session.board || []).length, f = (session.champions || []).length;
   $('counter').textContent = `${b} concept${b !== 1 ? 's' : ''} · ${f} finalized`;
-  $('breed-count').textContent = session.favorites.length;
-  $('breed-btn').disabled = session.favorites.length === 0;
 }
 
 // ---------- chat ----------
+const STARTER_ICONS = ['✨', '🎬', '💡', '🎯'];
+
+function suggestionChip(text, icon) {
+  const b = document.createElement('button'); b.className = 'suggestion';
+  b.textContent = (icon ? icon + ' ' : '') + text;
+  b.addEventListener('click', () => { const inp = $('chat-input'); inp.value = text; autoGrowChat(); sendChat(); });
+  return b;
+}
+
+function msgEl(m, isLastAssistant) {
+  const d = document.createElement('div'); d.className = 'msg ' + (m.role === 'user' ? 'user' : 'assistant');
+  const body = document.createElement('div'); body.className = 'msg-body'; body.textContent = m.text; d.appendChild(body);
+  if (m.role !== 'assistant') return d;
+
+  // Concepts this reply created — rich chips that jump to the board (Notion-style mentions).
+  if (Array.isArray(m.cards) && m.cards.length) {
+    const row = document.createElement('div'); row.className = 'msg-cards';
+    m.cards.forEach((c) => {
+      const chip = document.createElement('button'); chip.className = 'card-chip';
+      chip.textContent = '🃏 ' + c.tagline; chip.title = 'Show on the board';
+      chip.addEventListener('click', () => revealCard(c.id));
+      row.appendChild(chip);
+    });
+    d.appendChild(row);
+  }
+  // Hover action bar on replies: copy always, retry on the latest one.
+  const bar = document.createElement('div'); bar.className = 'msg-actions';
+  const copy = document.createElement('button'); copy.className = 'msg-act'; copy.textContent = '📋 Copy';
+  copy.addEventListener('click', () => {
+    const done = () => toast('Copied');
+    if (navigator.clipboard) navigator.clipboard.writeText(m.text).then(done).catch(() => toast('Copy failed', true));
+  });
+  bar.appendChild(copy);
+  if (isLastAssistant) {
+    const re = document.createElement('button'); re.className = 'msg-act'; re.textContent = '↻ Retry';
+    re.title = 'Regenerate this reply';
+    re.addEventListener('click', () => sendChat(true));
+    bar.appendChild(re);
+  }
+  d.appendChild(bar);
+  return d;
+}
+
+function revealCard(id) {
+  const el = document.querySelector(`#board .card[data-id="${id}"]`);
+  if (!el) { toast('That concept is no longer on the board'); return; }
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');
+}
+
 function renderChat() {
   const log = $('chat-log'); log.innerHTML = '';
   const chat = session.chat || [];
   if (!chat.length) {
-    log.innerHTML = '<div class="chat-empty">👋 I\'m your creative partner. Set a Brief above, or just tell me an idea / ask for concepts here — you can start anywhere.</div>';
+    const e = document.createElement('div'); e.className = 'chat-empty';
+    e.innerHTML = '<div class="ce-title">🧠 Your creative partner</div><div class="ce-sub">Share a half-formed idea, pin a Brief above, or start from one of these:</div>';
+    const starters = document.createElement('div'); starters.className = 'chat-starters';
+    (suggestions || []).forEach((s, i) => starters.appendChild(suggestionChip(s, STARTER_ICONS[i % STARTER_ICONS.length])));
+    e.appendChild(starters);
+    log.appendChild(e);
   } else {
-    chat.forEach((m) => { const d = document.createElement('div'); d.className = 'msg ' + (m.role === 'user' ? 'user' : 'assistant'); d.textContent = m.text; log.appendChild(d); });
+    const lastAssistant = chat.map((m) => m.role).lastIndexOf('assistant');
+    chat.forEach((m, i) => log.appendChild(msgEl(m, i === lastAssistant)));
   }
   const sug = $('chat-suggestions'); sug.innerHTML = '';
-  (suggestions || []).forEach((s) => { const b = document.createElement('button'); b.className = 'suggestion'; b.textContent = s; b.addEventListener('click', () => { $('chat-input').value = s; sendChat(); }); sug.appendChild(b); });
+  if (chat.length) (suggestions || []).forEach((s) => sug.appendChild(suggestionChip(s)));
+  renderChatContext();
   log.scrollTop = log.scrollHeight;
 }
+
+// Notion-style context visibility: show what the partner is working from.
+function renderChatContext() {
+  const host = $('chat-context'); if (!host) return;
+  const p = (session && session.pins) || {};
+  const chips = [];
+  if (p.persona) chips.push('👤 ' + personaName(p.persona));
+  if (p.pain) chips.push('💢 ' + painLabel(p.pain));
+  if (p.awarenessStage) chips.push('🧭 ' + stageName(p.awarenessStage));
+  if (p.format) chips.push('🖼 ' + p.format);
+  if (p.tagline) chips.push('✍ tagline');
+  if (p.visualIdea) chips.push('🎬 visual');
+  const extras = ['angle', 'mechanic', 'hookTactic', 'cta', 'product', 'notes'].filter((k) => p[k]).length
+    + ((p.insights || []).length ? 1 : 0) + ((p.constraints || []).length ? 1 : 0);
+  host.innerHTML = '';
+  const label = document.createElement('span'); label.className = 'ctx-label';
+  label.textContent = chips.length || extras ? 'Context — your Brief:' : 'Context: nothing pinned — I choose freely';
+  host.appendChild(label);
+  chips.slice(0, 4).forEach((t) => { const s = document.createElement('span'); s.className = 'ctx-chip'; s.textContent = t; host.appendChild(s); });
+  const more = Math.max(0, chips.length - 4) + extras;
+  if (more) { const s = document.createElement('span'); s.className = 'ctx-chip'; s.textContent = `+${more} more`; host.appendChild(s); }
+  host.title = 'Open the Brief';
+  host.onclick = () => { const b = $('brief'); if (b) b.scrollIntoView({ behavior: 'smooth', block: 'center' }); };
+}
+
 function appendMsg(role, text) {
   const log = $('chat-log'); const empty = log.querySelector('.chat-empty'); if (empty) empty.remove();
   const d = document.createElement('div'); d.className = 'msg ' + role; d.textContent = text; log.appendChild(d); log.scrollTop = log.scrollHeight; return d;
 }
-async function sendChat() {
-  const input = $('chat-input'); const text = input.value.trim(); if (!text) return;
-  input.value = '';
-  appendMsg('user', text);
-  const pending = appendMsg('assistant', 'thinking…'); pending.classList.add('pending');
+function thinkingEl() {
+  const log = $('chat-log'); const empty = log.querySelector('.chat-empty'); if (empty) empty.remove();
+  const d = document.createElement('div'); d.className = 'msg assistant pending';
+  d.innerHTML = '<span class="dots"><span></span><span></span><span></span></span><span class="pending-label">thinking…</span>';
+  log.appendChild(d); log.scrollTop = log.scrollHeight; return d;
+}
+
+function autoGrowChat() {
+  const t = $('chat-input');
+  t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 120) + 'px';
+  syncChatSend();
+}
+function syncChatSend() {
+  const btn = $('chat-send');
+  if (chatCtl) { btn.textContent = '◼ Stop'; btn.classList.add('stop'); btn.disabled = false; return; }
+  btn.textContent = 'Send'; btn.classList.remove('stop');
+  btn.disabled = !$('chat-input').value.trim();
+}
+
+let chatCtl = null;
+async function sendChat(retry = false) {
+  const input = $('chat-input');
+  if (chatCtl) { chatCtl.abort(); return; } // button doubles as Stop while pending
+  const text = retry ? null : input.value.trim();
+  if (!retry && !text) return;
+  if (!retry) { input.value = ''; autoGrowChat(); appendMsg('user', text); }
+  const pending = thinkingEl();
+  chatCtl = new AbortController(); syncChatSend();
   try {
-    const data = await callWithSession('POST', '/api/chat', () => ({ sessionId: session.id, message: text }));
+    const data = await callWithSession('POST', '/api/chat',
+      () => (retry ? { sessionId: session.id, retry: true } : { sessionId: session.id, message: text }),
+      { signal: chatCtl.signal });
     session = data.session; suggestions = data.suggestions || suggestions;
     render(); renderChat();
-    if (data.cards && data.cards.length) toast(`${data.cards.length} concept(s) added`);
-  } catch (e) { pending.remove(); toast(e.message, true); }
+    if (data.cards && data.cards.length) toast(`${data.cards.length} concept(s) added to the board`);
+  } catch (e) {
+    pending.remove();
+    if (e && e.aborted) {
+      if (!retry && text) { input.value = text; autoGrowChat(); } // give the draft back
+      toast('Stopped');
+    } else toast(e.message, true);
+  } finally { chatCtl = null; syncChatSend(); }
 }
 
 // ---------- board ----------
@@ -159,18 +278,14 @@ function cardEl(card) {
   const el = document.createElement('div'); el.className = 'card'; el.dataset.id = card.id;
   const s = card.scores || {}; const d = card.dna || {};
   const hasSel = () => window.getSelection().toString().trim().length > 0;
-  let hookHtml = '';
-  if (card.hookSpoken || card.hookTextOverlay) {
-    hookHtml = '<div class="hook">' + (card.hookSpoken ? `<div><b>🎙 </b>${esc(card.hookSpoken)}</div>` : '') + (card.hookTextOverlay ? `<div><b>🔤 </b>${esc(card.hookTextOverlay)}</div>` : '') + '</div>';
-  } else if (card.primaryText) { hookHtml = `<div class="hook"><b>✍ </b>${esc(card.primaryText)}</div>`; }
-
+  // card.concept and card.primaryText stay on the data (finalize/build use them) but
+  // aren't shown: the visual block covers the concept, the tagline covers the copy line.
   el.innerHTML = `
+    <button class="card-x" title="Discard this concept">✕</button>
     <div class="tagline" title="click to add to your Brief">${esc(card.tagline)}</div>
     ${card.emotionalInsight ? `<div class="insight-line" title="the raw human truth this ad is built on">🫀 ${esc(card.emotionalInsight)}</div>` : ''}
     <div class="angle" title="click to add this angle to your Brief">“${esc(card.messagingAngle)}”</div>
     ${card.visualIdea ? `<div class="visual" title="click to add this visual to your Brief"><b>🎬 </b>${esc(card.visualIdea)}</div>` : ''}
-    <div class="concept">${esc(card.concept)}</div>
-    ${hookHtml}
     ${card.cta ? `<div class="cta" title="click to add this CTA to your Brief"><b>📣 CTA:</b> ${esc(card.cta)}</div>` : ''}
     <div class="dna">
       <span class="tag stage" data-k="awarenessStage" data-v="${esc(d.awarenessStage)}">${esc(stageName(d.awarenessStage))}</span>
@@ -180,13 +295,23 @@ function cardEl(card) {
       <span class="tag" data-k="persona" data-v="${esc(d.persona)}">🎯 ${esc(personaName(d.persona))}</span>
       <span class="tag" data-k="pain" data-v="${esc(d.pain)}">💢 ${esc(painLabel(d.pain))}</span>
     </div>
+    <button class="pin-row" title="Copy this concept's setup into the Brief">📌 Pin Parameters</button>
     <div class="meter">
-      <div class="meter-top"><span>Quality score</span><span class="meter-score" style="color:${barColor(s.overall || 0)}">${s.overall ?? '–'}</span></div>
+      <div class="meter-top" title="click to see the score breakdown"><span>Quality score</span><span class="meter-right"><span class="meter-score" style="color:${barColor(s.overall || 0)}">${s.overall ?? '–'}</span>${s.productTruth != null || s.note ? '<span class="meter-chevron">▾</span>' : ''}</span></div>
       <div class="bar"><span style="width:${s.overall || 0}%;background:${barColor(s.overall || 0)}"></span></div>
     </div>
-    <div class="judge-note">🧑‍⚖️ ${esc(s.note || '')}</div>
   `;
-  if (s.productTruth != null) el.querySelector('.meter').appendChild(axesEl(s));
+  // Score breakdown (axes + judge's note) collapsed behind the score row — click to toggle.
+  if (s.productTruth != null || s.note) {
+    const detail = document.createElement('div'); detail.className = 'meter-detail'; detail.hidden = true;
+    if (s.productTruth != null) detail.appendChild(axesEl(s));
+    if (s.note) { const note = document.createElement('div'); note.className = 'judge-note'; note.textContent = `🧑‍⚖️ ${s.note}`; detail.appendChild(note); }
+    el.querySelector('.meter').appendChild(detail);
+    el.querySelector('.meter-top').addEventListener('click', () => {
+      detail.hidden = !detail.hidden;
+      const ch = el.querySelector('.meter-chevron'); if (ch) ch.textContent = detail.hidden ? '▾' : '▴';
+    });
+  }
 
   // click a part to add it to the Brief (skipped while selecting text to comment)
   el.querySelector('.tagline').addEventListener('click', () => { if (!hasSel()) pinPart('tagline', card.tagline); });
@@ -195,16 +320,16 @@ function cardEl(card) {
   const ctaEl = el.querySelector('.cta'); if (ctaEl) ctaEl.addEventListener('click', () => { if (!hasSel()) pinPart('cta', card.cta); });
   el.querySelectorAll('.dna .tag').forEach((t) => t.addEventListener('click', () => { if (!hasSel() && t.dataset.v) pinPart(t.dataset.k, t.dataset.v); }));
 
+  el.querySelector('.card-x').addEventListener('click', () => discard(card));
+  el.querySelector('.pin-row').addEventListener('click', () => pinFrame(card));
+
   const actions = document.createElement('div'); actions.className = 'card-actions';
-  const keep = document.createElement('button'); keep.className = 'keep'; keep.textContent = '❤ Save';
-  const disc = document.createElement('button'); disc.className = 'discard'; disc.textContent = '✕';
-  const pin = document.createElement('button'); pin.className = 'pin'; pin.textContent = '📌 Use as base'; pin.title = 'Copy this concept\'s setup into the Brief';
+  const variants = document.createElement('button'); variants.className = 'variants'; variants.textContent = '🧬 Make variants';
+  variants.title = 'Generate 3 variations of this concept';
   const crown = document.createElement('button'); crown.className = 'crown'; crown.textContent = '★ Finalize';
-  keep.addEventListener('click', () => react(card, true));
-  disc.addEventListener('click', () => react(card, false));
-  pin.addEventListener('click', () => pinFrame(card));
+  variants.addEventListener('click', () => makeVariants(card));
   crown.addEventListener('click', () => openChampion(card));
-  actions.append(keep, disc, pin, crown); el.appendChild(actions);
+  actions.append(variants, crown); el.appendChild(actions);
 
   // inline comments + regenerate (select any text on the card)
   const cmts = cardComments[card.id] || [];
@@ -219,7 +344,6 @@ function cardEl(card) {
     el.appendChild(hint);
   }
 
-  if (session.favorites.find((c) => c.id === card.id)) el.classList.add('kept');
   return el;
 }
 
@@ -235,9 +359,21 @@ function commentsEl(cmts, rerender, id, store) {
   return cwrap;
 }
 
-async function react(card, keep) {
-  try { const data = await callWithSession('POST', '/api/react', () => ({ sessionId: session.id, card, keep })); session = data.session; render(); if (keep) toast('Saved — reuse it for variations'); }
+async function discard(card) {
+  try { const data = await callWithSession('POST', '/api/react', () => ({ sessionId: session.id, card, keep: false })); session = data.session; render(); }
   catch (e) { toast(e.message, true); }
+}
+
+// 3 fresh variations of one concept — same machinery as breeding, seeded by this card.
+async function makeVariants(card) {
+  showLoader('Creating 3 variants of this concept…');
+  try {
+    const data = await callWithSession('POST', '/api/breed', () => ({ sessionId: session.id, parents: [card], loadout: { count: 3 } }));
+    session = data.session; render();
+    $('board-status').textContent = statusLine(data.stats);
+    if (data.stats && data.stats.passed === 0) toast('No variants cleared the quality bar — try again.', true);
+    else toast('🧬 Variants added to the board');
+  } catch (e) { handleErr(e); } finally { hideLoader(); }
 }
 
 // ---------- Brief (assembly chain) ----------
@@ -508,16 +644,6 @@ async function deal() {
     else handleErr(e);
   } finally { hideLoader(); }
 }
-async function breed() {
-  if (!session.favorites.length) return toast('Save at least one concept first.', true);
-  showLoader('Creating variations — this can take up to ~90s…');
-  try {
-    const data = await callWithSession('POST', '/api/breed', () => ({ sessionId: session.id, parents: session.favorites, loadout: { count: toolbar.count, medium: toolbar.medium } }));
-    session = data.session; render();
-    $('board-status').textContent = statusLine(data.stats);
-    if (data.stats && data.stats.passed === 0) toast('No variations cleared the quality bar — try again or loosen the brief.', true);
-  } catch (e) { handleErr(e); } finally { hideLoader(); }
-}
 function spin() {
   const roll = {};
   ['mechanic', 'format', 'hookTactic'].forEach((key) => {
@@ -552,7 +678,8 @@ function renderChampionModal(card, champ) {
     `<label class="tl-opt"><input type="radio" name="hero-tagline" value="${i}"${t === champ.headline ? ' checked' : ''}><span>${esc(t)}</span></label>`).join('');
   let hookBlock = '';
   if (champ.primaryText) hookBlock = `<h3>On-image copy</h3><div class="block">${esc(champ.primaryText)}</div>`;
-  const visual = card.visualIdea ? `<h3>Visual idea</h3><div class="block">🎬 ${esc(card.visualIdea)}</div>` : '';
+  const visualText = champ.visualIdea || card.visualIdea;
+  const visual = visualText ? `<h3>Visual direction</h3><div class="block">🎬 ${esc(visualText)}</div>` : '';
   const ctaBlock = card.cta ? `<h3>Call to action</h3><div class="block">📣 ${esc(card.cta)}</div>` : '';
   body.className = 'champ';
   body.innerHTML = `
@@ -594,9 +721,19 @@ function renderChampionModal(card, champ) {
     if (val == null) return;
     currentChampion.champ.headline = val;
     const h = $('champ-headline'); if (h) h.textContent = val;
-    // If the ad was already built, the prompt used the old hero — nudge a rebuild.
+    // If the ad was already built, the prompt used the old hero — mark it stale until rebuilt.
     const exResult = $('export-result');
-    if (exResult && exResult.innerHTML.trim()) toast('Hero tagline changed — click “Build ad from template” again to use it.');
+    if (exResult && exResult.innerHTML.trim()) {
+      toast('Hero tagline changed — rebuild the ad to use it.');
+      let stale = $('stale-prompt-warn');
+      if (!stale) {
+        stale = document.createElement('div');
+        stale.id = 'stale-prompt-warn';
+        stale.className = 'ex-warn';
+        exResult.prepend(stale);
+      }
+      stale.textContent = '⚠ Hero tagline changed — this prompt was built with the previous line. Click “Build ad from template →” to rebuild before generating.';
+    }
   });
 
   $('export-btn').addEventListener('click', () => exportConcept(card, currentChampion.champ));
@@ -623,7 +760,8 @@ async function ensureTemplates() {
 
 async function exportConcept(card, champ, templateNumber = null) {
   const referenceImages = ($('ref-input') ? $('ref-input').value : '').split(',').map((s) => s.trim()).filter(Boolean);
-  showLoader(templateNumber ? 'Rebuilding the ad from the chosen template…' : 'Filling the ad template with your concept…');
+  showLoader(templateNumber === 'freeform' ? 'Composing the ad around your concept — no template…'
+    : templateNumber ? 'Rebuilding the ad from the chosen template…' : 'Filling the ad template with your concept…');
   try {
     const data = await callWithSession('POST', '/api/export', () => ({ sessionId: session.id, card, champion: champ, referenceImages, templateNumber }));
     renderExportResult(data, card, champ);
@@ -641,7 +779,7 @@ function renderExportResult(data, card, champ) {
     <div class="tpl-box">
       ${tpl.preview_image_url ? `<img class="tpl-thumb" src="${esc(tpl.preview_image_url)}" alt="template preview" />` : '<div class="tpl-thumb tpl-thumb-empty">no preview</div>'}
       <div class="tpl-info">
-        <div class="tpl-name">Template #${esc(String(tpl.number || ''))} · ${esc(tpl.name || '')} ${tpl.auto_suggested ? '<span class="tpl-auto">auto-matched</span>' : '<span class="tpl-manual">your pick</span>'}</div>
+        <div class="tpl-name">${tpl.number == null ? `✍ ${esc(tpl.name || 'Concept-first (no template)')}` : `Template #${esc(String(tpl.number))} · ${esc(tpl.name || '')}`} ${tpl.auto_suggested ? '<span class="tpl-auto">auto-matched</span>' : '<span class="tpl-manual">your pick</span>'}</div>
         <div class="tpl-cat">${esc(tpl.category || '')} · ${esc(tpl.aspect_ratio || s.aspect_ratio || '')}</div>
         <label class="ex-label" for="tpl-sel">Swap layout template <span id="tpl-count" class="tpl-count"></span></label>
         <select id="tpl-sel"><option>loading templates…</option></select>
@@ -649,6 +787,7 @@ function renderExportResult(data, card, champ) {
       </div>
     </div>
     <div class="ex-meta">${esc(rec.format || '')} · ${esc(s.aspect_ratio || '')} · ${esc(s.model || '')}</div>
+    ${(rec.warnings || []).map((w) => `<div class="ex-warn">⚠ ${esc(w)}</div>`).join('')}
     <label class="ex-label">Final prompt (auto-sent to Nano Banana Pro)</label>
     <textarea class="ex-prompt" id="ex-prompt" readonly>${esc(rec.prompt || '')}</textarea>
     <div class="gen-row">
@@ -681,17 +820,26 @@ function renderExportResult(data, card, champ) {
     if (!sel) return;
     if (!tpls.length) { sel.innerHTML = '<option>no templates available</option>'; sel.disabled = true; return; }
     const ranked = rankTemplatesForConcept(card, rec, tpls);
-    const optHtml = (t) => `<option value="${t.number}"${t.number === tpl.number ? ' selected' : ''}>#${t.number} ${esc(t.name)} (${esc(t.aspect_ratio)})</option>`;
+    const isFreeform = tpl.number == null;
+    const needsPerson = sceneNeedsPerson((rec._concept_forge && rec._concept_forge.visualIdea) || card.visualIdea);
+    const freeformOpt = `<option value="freeform"${isFreeform ? ' selected' : ''}>✍ Concept-first — compose from the concept (no template)</option>`;
+    const flagsFor = (t) => {
+      const f = [];
+      if (needsPerson && t.people_ok === false) f.push('🚫 product-only');
+      if (t.has_headline_slot === false) f.push('⚠ no headline slot');
+      return f.length ? ` — ${f.join(' · ')}` : '';
+    };
+    const optHtml = (t) => `<option value="${t.number}"${!isFreeform && t.number === tpl.number ? ' selected' : ''}>#${t.number} ${esc(t.name)} (${esc(t.aspect_ratio)})${flagsFor(t)}</option>`;
     const populate = (showAll) => {
       if (showAll) {
         const byCat = {};
         tpls.forEach((t) => { (byCat[t.category] = byCat[t.category] || []).push(t); });
-        sel.innerHTML = Object.keys(byCat).sort().map((cat) =>
+        sel.innerHTML = freeformOpt + Object.keys(byCat).sort().map((cat) =>
           `<optgroup label="${esc(cat)}">` + byCat[cat].sort((a, b) => a.number - b.number).map(optHtml).join('') + '</optgroup>').join('');
       } else {
         let top = ranked.slice(0, SHORTLIST);
-        if (!top.some((t) => t.number === tpl.number)) { const cur = tpls.find((t) => t.number === tpl.number); if (cur) top = [cur, ...top]; }
-        sel.innerHTML = `<optgroup label="★ Best matches for this concept">` + top.map(optHtml).join('') + '</optgroup>';
+        if (!isFreeform && !top.some((t) => t.number === tpl.number)) { const cur = tpls.find((t) => t.number === tpl.number); if (cur) top = [cur, ...top]; }
+        sel.innerHTML = freeformOpt + `<optgroup label="★ Best matches for this concept">` + top.map(optHtml).join('') + '</optgroup>';
       }
       const cnt = $('tpl-count');
       if (cnt) cnt.textContent = showAll ? `(all ${tpls.length})` : `(${Math.min(SHORTLIST, ranked.length)} best of ${tpls.length})`;
@@ -700,17 +848,27 @@ function renderExportResult(data, card, champ) {
     populate(allCb && allCb.checked);
     if (allCb) allCb.addEventListener('change', () => populate(allCb.checked));
     sel.addEventListener('change', () => {
+      if (!card || !champ) return;
+      if (sel.value === 'freeform') { if (tpl.number != null) exportConcept(card, champ, 'freeform'); return; }
       const num = Number(sel.value);
-      if (num && num !== tpl.number && card && champ) exportConcept(card, champ, num);
+      if (num && num !== tpl.number) exportConcept(card, champ, num);
     });
   });
 }
 
-// Rank templates by fit to a concept: same category (from the brief) first, then
-// keyword/signal overlap with the tagline + copy. Zero-cost, instant, client-side.
+// Does the concept's visual scene feature a human? (mirror of server-side check)
+function sceneNeedsPerson(sceneText) {
+  return /\b(woman|man|person|people|she|her|he|his|face|hands?|arms?|shoulder|legs?|skin|model|selfie|wearing|applying)\b/.test(String(sceneText || '').toLowerCase());
+}
+
+// Rank templates by fit to a concept: compatibility first (a product-only layout can
+// never show the concept's person; no headline slot means the hero tagline can't land),
+// then same category (from the brief), then keyword/signal overlap with the copy.
 function rankTemplatesForConcept(card, rec, tpls) {
   const d = (card && card.dna) || {};
   const cat = rec && rec.template && rec.template.category;
+  const scene = (rec && rec._concept_forge && rec._concept_forge.visualIdea) || card.visualIdea;
+  const needsPerson = sceneNeedsPerson(scene);
   const hay = [card.tagline, card.emotionalInsight, card.messagingAngle, card.concept, card.cta, d.mechanic, d.hookTactic, d.format]
     .filter(Boolean).join(' ').toLowerCase();
   const hasNum = /\d/.test(`${card.tagline || ''} ${card.messagingAngle || ''} ${card.concept || ''}`);
@@ -720,6 +878,9 @@ function rankTemplatesForConcept(card, rec, tpls) {
   const scored = tpls.map((t) => {
     const name = (t.name || '').toLowerCase();
     let s = 0;
+    if (needsPerson && t.people_ok === false) s -= 1000;   // scene's person can never appear
+    if (needsPerson && t.features_person) s += 40;
+    if (t.has_headline_slot) s += 25;                       // hero tagline has a place to land
     if (cat && t.category === cat) s += 100;
     name.split(/\W+/).filter((w) => w.length > 3).forEach((w) => { if (hay.includes(w)) s += 6; });
     if (hasNum && /stat|number|result|numeral|%/.test(name)) s += 22;
@@ -770,19 +931,6 @@ async function generateImageUI(rec, refs) {
 }
 
 // ---------- side lists ----------
-function renderFavorites() {
-  const fav = $('favorites'); fav.innerHTML = '';
-  if (!session.favorites.length) fav.innerHTML = '<div class="mini empty">Save concepts to reuse them for variations.</div>';
-  else session.favorites.forEach((c) => { const m = document.createElement('div'); m.className = 'mini'; m.innerHTML = `<span class="mini-tag">${esc(c.tagline)}</span><span class="mini-sub">${esc(c.dna?.mechanic || '')} · ${esc(c.dna?.format || '')} · ${c.scores?.overall ?? ''}</span>`; fav.appendChild(m); });
-  $('fav-count').textContent = session.favorites.length;
-}
-function renderChampions() {
-  const ch = $('champions'); ch.innerHTML = '';
-  if (!session.champions.length) ch.innerHTML = '<div class="mini empty">Finalize a concept to lock it in.</div>';
-  else session.champions.forEach((c) => { const m = document.createElement('div'); m.className = 'mini'; m.innerHTML = `<span class="mini-tag champ-link">${esc(c.champion.headline)}</span><span class="mini-sub">${esc(c.dna?.format || '')}</span>`; m.querySelector('.champ-link').addEventListener('click', () => renderChampionModal({ id: c.id, dna: c.dna, visualIdea: '' }, c.champion)); ch.appendChild(m); });
-  $('champ-count').textContent = session.champions.length;
-}
-
 // ---------- inline comments → regenerate (board + finalized) ----------
 function onTextSelect(e) {
   if (e && e.target && e.target.closest && e.target.closest('.comment-widget')) return;
@@ -838,11 +986,12 @@ async function refineCardUI(card) {
 // ---------- wire up ----------
 $('start-btn').addEventListener('click', startSession);
 $('new-session-btn').addEventListener('click', () => location.reload());
-$('chat-send').addEventListener('click', sendChat);
+$('chat-send').addEventListener('click', () => sendChat());
 $('chat-input').addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); } });
+$('chat-input').addEventListener('input', autoGrowChat);
+syncChatSend();
 $('spin-btn').addEventListener('click', spin);
 $('deal-btn').addEventListener('click', deal);
-$('breed-btn').addEventListener('click', breed);
 $('brief-toggle').addEventListener('click', () => setBriefCollapse(!briefCollapsed));
 $('chain-clear').addEventListener('click', () => { const cleared = { constraints: [], enhancers: [], insights: [] }; chainSlots().forEach((s) => { cleared[s.key] = ''; }); savePins(cleared); });
 document.addEventListener('mouseup', onTextSelect);

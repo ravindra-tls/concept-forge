@@ -37,18 +37,11 @@
         <div class="chat-head">🧠 Creative partner <span class="chat-sub">steer me anytime</span></div>
         <div id="chat-log" class="chat-log"></div>
         <div id="chat-suggestions" class="chat-suggestions"></div>
+        <button id="chat-context" class="chat-context" type="button"></button>
         <div class="chat-input-row">
-          <textarea id="chat-input" rows="2" placeholder="Share an idea, or ask for concepts… (Enter to send)"></textarea>
+          <textarea id="chat-input" rows="1" placeholder="Share an idea, or ask for concepts… (Enter to send, Shift+Enter for a new line)"></textarea>
           <button class="primary-btn" id="chat-send">Send</button>
         </div>
-      </div>
-      <div class="panel">
-        <h2>❤ Saved <span class="pill-count" id="fav-count">0</span></h2>
-        <div id="favorites" class="mini-list"></div>
-      </div>
-      <div class="panel">
-        <h2>✓ Finalized <span class="pill-count" id="champ-count">0</span></h2>
-        <div id="champions" class="mini-list"></div>
       </div>
     </aside>
 
@@ -61,7 +54,6 @@
         <div class="brief-actions">
           <button class="primary-btn" id="deal-btn">Generate</button>
           <button class="ghost-btn" id="spin-btn" title="Randomly fill the open creative choices">✨ Surprise me</button>
-          <button class="variations-btn" id="breed-btn" disabled title="Create variations from your saved concepts">Make variations (<span id="breed-count">0</span>)</button>
           <label class="tb-field">Count <b id="count-label">4</b><input type="range" id="count-range" min="2" max="6" value="4" /></label>
           <span class="model-badge" title="Concept Forge makes static image ads">🖼 Static ads</span>
           <button class="tiny-btn" id="chain-clear" title="Clear all brief fields">clear brief</button>
