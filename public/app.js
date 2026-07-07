@@ -841,9 +841,13 @@ function renderChampionModal(card, champ) {
     <h3>Hero tagline <span class="hint-inline">— pick the one to build the ad on</span></h3>
     <div class="tagline-picker" id="tagline-picker">${radios}</div>
     <h3>Concept</h3><div class="block">${esc(champ.concept)}</div>
-    ${visual}${ctaBlock}${hookBlock}
-    <h3>Why it works</h3><div class="block">${esc(champ.whyItWorks)}</div>
-    <h3>Compliance</h3><div class="block compliance">✓ ${esc(champ.complianceCheck)}</div>
+    ${visual}${ctaBlock}
+    <details class="champ-details">
+      <summary><span class="cd-chev">▸</span> On-image copy · Why it works · Compliance</summary>
+      ${hookBlock}
+      <h3>Why it works</h3><div class="block">${esc(champ.whyItWorks)}</div>
+      <h3>Compliance</h3><div class="block compliance">✓ ${esc(champ.complianceCheck)}</div>
+    </details>
     <div id="champ-edit"></div>
     <div class="export-row">
       <span class="model-badge">Nano Banana Pro · templated</span>

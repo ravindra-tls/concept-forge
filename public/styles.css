@@ -388,7 +388,18 @@ input::placeholder, textarea::placeholder { color: #9ca3af; }
 .tl-opt:hover { border-color: var(--border-strong); }
 .tl-opt input { margin-top: 3px; flex: 0 0 auto; accent-color: var(--forest); }
 .tl-opt:has(input:checked) { border-color: var(--forest); background: rgba(26, 81, 41, .05); box-shadow: var(--ring-selected); }
-.champ .block { background: var(--bg-inset); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); padding: 12px; font-size: 13px; }
+.champ .block { background: var(--bg-inset); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); padding: 12px; font-size: 13px; white-space: pre-wrap; }
+
+/* collapsed detail sections (copy / rationale / compliance) */
+.champ-details { margin-top: 16px; border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); padding: 0 12px; }
+.champ-details summary { list-style: none; cursor: pointer; padding: 10px 0; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .6px; color: var(--text-3); display: flex; align-items: center; gap: 7px; }
+.champ-details summary::-webkit-details-marker { display: none; }
+.champ-details summary:hover { color: var(--text-1); }
+.champ-details .cd-chev { font-size: 10px; transition: transform var(--dur-base) var(--spring-soft); }
+.champ-details[open] .cd-chev { transform: rotate(90deg); }
+.champ-details[open] summary { color: var(--text-1); border-bottom: 1px dashed var(--border); }
+.champ-details > :not(summary) { animation: fade-in .25s var(--smooth) backwards; }
+.champ-details > .block:last-child { margin-bottom: 12px; }
 .champ .compliance { background: var(--ok-bg); border-color: rgba(21, 128, 61, .25); color: var(--ok-text); }
 .export-row { display: flex; gap: 8px; align-items: center; margin-top: 16px; }
 .export-row select { width: auto; flex: 0 0 auto; }
