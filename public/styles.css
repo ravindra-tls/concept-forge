@@ -137,6 +137,38 @@ select { background: var(--bg-surface); color: var(--text-2); border: 1px solid 
   background-repeat: no-repeat; background-position: right 10px center; }
 select:hover { border-color: var(--border-strong); color: var(--text-1); }
 select:focus, textarea:focus, input:focus { outline: none; border-color: rgba(26, 81, 41, .5); }
+
+/* TAE-styled dropdown panels — Chromium customizable select; other browsers
+   keep the native picker (trigger styling above still applies). */
+@supports selector(::picker(select)) {
+  select { appearance: base-select; background-image: none; }
+  select::picker-icon { color: var(--slate); font-size: 11px; transition: transform var(--dur-base) var(--spring-soft); }
+  select:open { border-color: var(--forest); color: var(--text-1); }
+  select:open::picker-icon { transform: rotate(180deg); color: var(--forest); }
+  ::picker(select) {
+    appearance: base-select;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, .10), 0 4px 6px -4px rgba(0, 0, 0, .10);
+    padding: 4px;
+    margin-top: 4px;
+    transform-origin: top;
+    opacity: 0; transform: scale(.96);
+    transition: opacity .15s var(--smooth), transform .15s var(--spring-soft), overlay .15s allow-discrete, display .15s allow-discrete;
+  }
+  select:open::picker(select) { opacity: 1; transform: scale(1); }
+  @starting-style { select:open::picker(select) { opacity: 0; transform: scale(.96); } }
+  select option {
+    padding: 7px 10px; border-radius: var(--radius); font-size: 13px; color: var(--text-2);
+    background: transparent; transition: background-color var(--dur-fast) var(--smooth);
+  }
+  select option:hover, select option:focus { background: var(--bg-inset); color: var(--text-1); }
+  select option:checked { background: rgba(26, 81, 41, .08); color: var(--text-1); font-weight: 600; }
+  select option::checkmark { color: var(--forest); }
+  select optgroup { font-size: 10.5px; text-transform: uppercase; letter-spacing: .5px; color: var(--text-3); padding: 6px 10px 2px; }
+  select optgroup option { text-transform: none; letter-spacing: 0; }
+}
 textarea { background: var(--bg-surface); color: var(--text-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 12px; font: inherit; resize: none; }
 input::placeholder, textarea::placeholder { color: #9ca3af; }
 
