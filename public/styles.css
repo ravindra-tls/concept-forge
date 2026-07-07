@@ -432,10 +432,12 @@ input::placeholder, textarea::placeholder { color: #9ca3af; }
 .gen-row { display: flex; gap: 8px; align-items: center; margin-top: 8px; flex-wrap: wrap; }
 .gen-row select { width: auto; flex: 0 0 auto; padding: 8px 26px 8px 10px; font-size: 12.5px; }
 #gen-image-result { margin-top: 10px; }
-.gen-loading { color: var(--text-3); font-size: 12.5px; font-style: italic; }
+.gen-loading { color: var(--text-3); font-size: 12.5px; }
+.gen-loading .gen-msg { font-style: italic; transition: opacity .3s var(--smooth); }
+.gen-loading .gen-note { font-size: 11px; color: var(--text-3); opacity: .75; margin-top: 5px; }
 .gen-image { max-width: 100%; border-radius: var(--radius-lg); border: 1px solid var(--border-subtle); display: block; box-shadow: var(--shadow-md); }
-.gen-image-actions { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
-.gen-image-desc { color: var(--text-3); font-size: 12px; font-style: italic; margin-top: 6px; }
+.gen-image-actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; align-items: center; }
+.gen-image-actions .dl-btn { text-decoration: none; display: inline-flex; align-items: center; gap: 5px; padding: 9px 14px; font-size: 13px; border-radius: var(--radius); }
 
 /* ═══ Toast + loader ═══ */
 .toast { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); background: var(--bg-surface); border: 1px solid var(--border-subtle); color: var(--text-2); padding: 11px 18px; border-radius: var(--radius-lg); z-index: 60; box-shadow: var(--shadow-2xl); max-width: 80vw; animation: slide-up .45s var(--spring) backwards; }

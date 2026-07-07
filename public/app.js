@@ -1051,12 +1051,40 @@ function rankTemplatesForConcept(card, rec, tpls) {
   return scored.map((x) => x.t);
 }
 
+// Art-direction narration shown only WHILE the render is in flight — once the
+// image exists it speaks for itself.
+const GEN_MSGS = [
+  'Blocking out the layout…',
+  'Composing the scene and framing…',
+  'Placing the headline type…',
+  'Matching the brand palette…',
+  'Rendering skin texture honestly…',
+  'Checking label and logo details…',
+  'Final pass — lighting and grain…',
+];
+let genMsgTimer = null;
+function startGenLoading(host) {
+  host.innerHTML = `
+    <div class="gen-loading">
+      <span class="feed-progress"><span></span></span><span class="gen-msg" id="gen-msg"></span>
+      <div class="gen-note">Rendering with Nano Banana Pro — usually 10–30s</div>
+    </div>`;
+  let i = 0; $('gen-msg').textContent = GEN_MSGS[0];
+  genMsgTimer = setInterval(() => {
+    const m = $('gen-msg'); if (!m) return;
+    i = (i + 1) % GEN_MSGS.length;
+    m.style.opacity = 0;
+    setTimeout(() => { m.textContent = GEN_MSGS[i]; m.style.opacity = 1; }, 300);
+  }, 3500);
+}
+function stopGenLoading() { if (genMsgTimer) { clearInterval(genMsgTimer); genMsgTimer = null; } }
+
 async function generateImageUI(rec, refs) {
   const host = $('gen-image-result');
   const btn = $('gen-image-btn');
   const resolution = $('gen-resolution').value;
   btn.disabled = true; btn.textContent = '🎨 Generating…';
-  host.innerHTML = '<div class="gen-loading">Rendering with Nano Banana Pro — usually 10–30s…</div>';
+  startGenLoading(host);
   try {
     const data = await api('POST', '/api/generate-image', {
       prompt: rec.prompt,
@@ -1064,16 +1092,15 @@ async function generateImageUI(rec, refs) {
       aspectRatio: rec.settings?.aspect_ratio,
       resolution,
     });
+    stopGenLoading();
     const img = (data.images || [])[0];
     if (!img) { host.innerHTML = '<div class="ex-warn">⚠ No image returned.</div>'; return; }
     host.innerHTML = `
       <img class="gen-image" src="${esc(img.url)}" alt="Generated ad image" />
       <div class="gen-image-actions">
-        <a class="ghost-btn" href="${esc(img.url)}" target="_blank" rel="noopener">↗ Open full size</a>
-        <a class="ghost-btn" href="${esc(img.url)}" download>⬇ Download</a>
+        <a class="primary-btn dl-btn" href="${esc(img.url)}" download target="_blank" rel="noopener" data-glow>⬇ Download image</a>
         <button class="ghost-btn" id="gen-regen-btn">↻ Regenerate</button>
       </div>
-      ${data.description ? `<div class="gen-image-desc">${esc(data.description)}</div>` : ''}
     `;
     $('gen-regen-btn').addEventListener('click', () => generateImageUI(rec, refs));
     toast('Image generated');
@@ -1084,6 +1111,7 @@ async function generateImageUI(rec, refs) {
       : e.message;
     host.innerHTML = `<div class="ex-warn">⚠ ${esc(msg)}</div>`;
   } finally {
+    stopGenLoading();
     btn.disabled = false; btn.textContent = '🎨 Generate image →';
   }
 }
