@@ -33,17 +33,24 @@
   <section id="game" class="game" hidden>
     <!-- MAIN: brief composer on top, concept feed below -->
     <main class="main">
-      <section class="brief-bar">
-        <div class="brief-head"><button class="brief-toggle" id="brief-toggle" title="Show or hide the brief">▾</button> Brief <span class="brief-sub" id="brief-sub">set what you want, then Generate — leave anything blank and it's chosen for you</span></div>
-        <div id="brief-summary" class="brief-summary"></div>
-        <div id="brief" class="brief-segs"></div>
-        <div class="brief-actions">
-          <button class="primary-btn" id="deal-btn">Generate</button>
-          <button class="ghost-btn" id="spin-btn" title="Randomly fill the open creative choices">✨ Surprise me</button>
-          <label class="tb-field">Count <b id="count-label">4</b><input type="range" id="count-range" min="2" max="6" value="4" /></label>
+      <section class="composer" id="brief">
+        <div class="composer-row" id="composer-row">
+          <div class="composer-targets" id="composer-targets"></div>
+          <div class="composer-actions">
+            <label class="tb-field">Count <b id="count-label">4</b><input type="range" id="count-range" min="2" max="6" value="4" /></label>
+            <button class="primary-btn" id="deal-btn" data-glow>⚡ Generate</button>
+            <button class="ghost-btn" id="spin-btn" title="Randomly fill the open creative choices">✨ Surprise me</button>
+          </div>
+        </div>
+        <div class="composer-disclosures">
+          <button class="disclosure-btn" id="levers-toggle" type="button">▸ Creative levers<span class="disc-count" id="levers-count" hidden></span></button>
+          <button class="disclosure-btn" id="extras-toggle" type="button">▸ Constraints &amp; extras<span class="disc-count" id="extras-count" hidden></span></button>
           <span class="model-badge" title="Concept Forge makes static image ads">🖼 Static ads</span>
           <button class="tiny-btn" id="chain-clear" title="Clear all brief fields">clear brief</button>
         </div>
+        <div class="composer-meta" id="composer-meta"></div>
+        <div class="levers-panel" id="levers-panel" hidden></div>
+        <div class="extras-drawer" id="extras-drawer" hidden></div>
       </section>
       <div class="board-head"><h2 id="board-title">Concepts</h2><span class="board-status" id="board-status"></span></div>
       <div id="board" class="hand"></div>

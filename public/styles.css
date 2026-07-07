@@ -155,23 +155,26 @@ input::placeholder, textarea::placeholder { color: #9ca3af; }
 .rail-collapsed #chat-rail .chat { display: none; }
 .rail-collapsed .rail-strip { display: flex; }
 
-/* ═══ Brief bar ═══ */
-.brief-bar { background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); padding: 12px 14px; margin-bottom: 12px; box-shadow: var(--shadow-sm); }
-.brief-head { font-weight: 600; font-size: 14px; margin-bottom: 10px; color: var(--text-1); }
-.brief-head .brief-sub { color: var(--text-3); font-weight: 400; font-size: 12px; margin-left: 6px; }
-.brief-toggle { background: transparent; border: none; color: var(--text-1); font-size: 13px; cursor: pointer; padding: 0 4px; }
-.brief-toggle:hover { color: var(--primary-hover); }
-.brief-summary { display: none; color: var(--text-3); font-size: 12.5px; margin-bottom: 4px; }
-.brief-summary .brief-edit-link { color: var(--text-1); cursor: pointer; }
-.brief-summary .brief-edit-link:hover { text-decoration: underline; }
-.brief-bar.collapsed { padding-bottom: 10px; }
-.brief-bar.collapsed #brief { display: none; }
-.brief-bar.collapsed .brief-summary { display: block; }
-.brief-bar.collapsed .brief-sub { display: none; }
-.brief-segs { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: flex-end; }
-.brief-group { display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: flex-end; padding-right: 12px; border-right: 1px dashed var(--border); }
-.brief-group:last-child { border-right: none; }
-.brief-group-label { flex-basis: 100%; font-size: 9.5px; text-transform: uppercase; letter-spacing: .6px; color: var(--text-3); margin-bottom: -2px; }
+/* ═══ Composer (compact Brief) ═══ */
+.composer { background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); padding: 12px 14px; margin-bottom: 12px; box-shadow: var(--shadow-sm); position: sticky; top: 0; z-index: 15; }
+.composer-row { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: flex-end; justify-content: space-between; }
+.composer-targets { display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: flex-end; flex: 1 1 420px; }
+.composer-targets .brief-seg { flex: 1 1 130px; }
+.composer-actions { display: flex; gap: 8px; align-items: center; flex: 0 0 auto; }
+.composer-actions .primary-btn { font-weight: 600; }
+.composer-disclosures { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px; padding-top: 9px; border-top: 1px solid var(--border-subtle); }
+.disclosure-btn { background: transparent; border: 1px solid transparent; color: var(--text-3); font-size: 12.5px; font-weight: 500; padding: 4px 9px; border-radius: var(--radius); display: inline-flex; align-items: center; gap: 6px; }
+.disclosure-btn:hover { color: var(--text-1); background: var(--bg-inset); }
+.disclosure-btn.open { color: var(--text-1); background: var(--bg-inset); border-color: var(--border); }
+.disc-count { background: var(--primary); color: #fff; font-size: 10px; font-weight: 700; border-radius: var(--pill); padding: 1px 7px; }
+.disc-count.pop { animation: badge-pop .4s var(--spring); }
+.composer-disclosures .model-badge { margin-left: auto; }
+.composer-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; }
+.meta-chip { display: inline-flex; align-items: center; gap: 6px; background: var(--bg-inset); border: 1px solid var(--border); color: var(--text-1); border-radius: var(--pill); padding: 3px 6px 3px 11px; font-size: 11.5px; animation: badge-pop .35s var(--spring) backwards; }
+.meta-x { background: transparent; border: none; color: var(--text-3); font-size: 10px; padding: 1px 4px; border-radius: 50%; cursor: pointer; }
+.meta-x:hover { color: var(--wine); }
+.levers-panel { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 8px 12px; margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border); animation: rise .3s var(--spring-soft) backwards; }
+.extras-drawer { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border); animation: rise .3s var(--spring-soft) backwards; }
 .brief-seg { display: flex; flex-direction: column; gap: 3px; min-width: 120px; }
 .brief-seg.wide { min-width: 170px; flex: 1 1 170px; }
 .seg-label { font-size: 10px; text-transform: uppercase; letter-spacing: .4px; color: var(--text-3); display: flex; align-items: center; gap: 4px; }

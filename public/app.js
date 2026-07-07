@@ -10,7 +10,6 @@ const cardComments = {};      // cardId -> [{quote, comment}] on board concepts
 const championComments = {};  // cardId -> [{quote, comment}] on finalized concepts
 let currentChampion = null;   // { card, champ } currently open in the finalize modal
 let commentWidget = null;
-let briefCollapsed = false;
 const toolbar = { count: 4, medium: 'Static' }; // static-image tool
 
 const $ = (id) => document.getElementById(id);
@@ -341,6 +340,7 @@ function cardEl(card) {
   const variants = document.createElement('button'); variants.className = 'variants'; variants.textContent = '🧬 Make variants';
   variants.title = 'Generate 3 variations of this concept';
   const crown = document.createElement('button'); crown.className = 'crown'; crown.textContent = '★ Finalize';
+  if (streaming) { variants.disabled = true; crown.disabled = true; } // mid-stream cards act after the run settles
   variants.addEventListener('click', () => makeVariants(card));
   crown.addEventListener('click', () => openChampion(card));
   actions.append(variants, crown); el.appendChild(actions);
@@ -471,26 +471,40 @@ function chipTray(items, activeIds, getId, getLabel, getTitle, onToggle, onbrand
   return tray;
 }
 
+// ---------- composer (compact Brief with progressive disclosure) ----------
+const ui = { leversOpen: false, extrasOpen: false };
+const TARGET_KEYS = ['persona', 'pain', 'awarenessStage'];
+const LEVER_KEYS = ['angle', 'mechanic', 'format', 'hookTactic', 'tagline', 'visualIdea', 'cta', 'product', 'notes'];
+
 function renderChain() {
-  const host = $('brief'); host.innerHTML = '';
   const pins = session.pins || {};
   const byKey = Object.fromEntries(chainSlots().map((s) => [s.key, s]));
+  renderComposerRow(byKey, pins);
+  renderLevers(byKey, pins);
+  renderExtras(pins);
+  renderComposerMeta(byKey, pins);
+  syncDisclosures(pins);
+}
 
-  BRIEF_GROUPS.forEach((g) => {
-    const grp = document.createElement('div'); grp.className = 'brief-group';
-    const gl = document.createElement('div'); gl.className = 'brief-group-label'; gl.textContent = g.label; grp.appendChild(gl);
-    g.keys.forEach((k) => { if (byKey[k]) grp.appendChild(buildSeg(byKey[k], pins)); });
-    host.appendChild(grp);
-  });
+function renderComposerRow(byKey, pins) {
+  const host = $('composer-targets'); host.innerHTML = '';
+  TARGET_KEYS.forEach((k) => { if (byKey[k]) host.appendChild(buildSeg(byKey[k], pins)); });
+}
 
-  const toggles = document.createElement('div'); toggles.className = 'brief-toggles';
+function renderLevers(byKey, pins) {
+  const host = $('levers-panel'); host.innerHTML = '';
+  LEVER_KEYS.forEach((k) => { if (byKey[k]) host.appendChild(buildSeg(byKey[k], pins)); });
+}
+
+function renderExtras(pins) {
+  const host = $('extras-drawer'); host.innerHTML = '';
   // constraints
   const cg = document.createElement('div'); cg.className = 'brief-toggle-group';
   cg.innerHTML = '<div class="tg-label">Constraints <span class="seg-info" title="Optional rules that force novelty (e.g. ≤6 words, as a confession).">i</span></div>';
   cg.appendChild(chipTray(TAX.constraintCards || [], pins.constraints || [], (c) => c.id, (c) => c.label, (c) => c.instruction, (id) => {
     const cur = (session.pins.constraints || []).slice(); const i = cur.indexOf(id); if (i === -1) cur.push(id); else cur.splice(i, 1); savePins({ constraints: cur });
   }));
-  toggles.appendChild(cg);
+  host.appendChild(cg);
   // conversion enhancers (badges on the exported image)
   const approved = (deck.approvedLanguage || []).join(' ').toLowerCase();
   const eg = document.createElement('div'); eg.className = 'brief-toggle-group';
@@ -498,8 +512,7 @@ function renderChain() {
   eg.appendChild(chipTray(TAX.conversionEnhancers || [], pins.enhancers || [], (e) => e.id, (e) => e.label, () => 'Integrated into the exported image, placed to fit the composition', (id) => {
     const cur = (session.pins.enhancers || []).slice(); const i = cur.indexOf(id); if (i === -1) cur.push(id); else cur.splice(i, 1); savePins({ enhancers: cur });
   }, (e) => (e.match || []).some((m) => approved.includes(m))));
-  toggles.appendChild(eg);
-
+  host.appendChild(eg);
   // human-insight mining (the emotional core)
   const ig = document.createElement('div'); ig.className = 'brief-toggle-group insight-group';
   const igLabel = document.createElement('div'); igLabel.className = 'tg-label';
@@ -524,11 +537,63 @@ function renderChain() {
     hint.textContent = pins.persona ? 'Mine insights to surface this persona’s raw truths.' : 'Pick a persona, then mine insights.';
     ig.appendChild(hint);
   }
-  toggles.appendChild(ig);
-
-  host.appendChild(toggles);
-  if (briefCollapsed) updateBriefSummary();
+  host.appendChild(ig);
 }
+
+// Pinned values hiding inside CLOSED sections surface as removable chips here,
+// so the composer itself is always an honest summary of the Brief.
+function renderComposerMeta(byKey, pins) {
+  const host = $('composer-meta'); host.innerHTML = '';
+  const addChip = (label, onRemove, title) => {
+    const chip = document.createElement('span'); chip.className = 'meta-chip';
+    const txt = document.createElement('span'); txt.textContent = label; if (title) chip.title = title;
+    const x = document.createElement('button'); x.className = 'meta-x'; x.textContent = '✕'; x.title = 'Remove from Brief';
+    x.addEventListener('click', onRemove);
+    chip.append(txt, x); host.appendChild(chip);
+  };
+  if (!ui.leversOpen) {
+    LEVER_KEYS.filter((k) => pins[k]).forEach((k) => {
+      const slot = byKey[k];
+      addChip(`${slot ? slot.label : k}: ${truncate(displayPin(k, pins[k]), 28)}`, () => savePins({ [k]: '' }), String(pins[k]));
+    });
+  }
+  if (!ui.extrasOpen) {
+    (pins.insights || []).forEach((ins) => addChip(`${insightEmoji(ins.emotion)} ${truncate(ins.tension, 26)}`, () => {
+      savePins({ insights: (session.pins.insights || []).filter((x) => x.id !== ins.id) });
+    }, ins.tension));
+    (pins.constraints || []).forEach((id) => {
+      const c = (TAX.constraintCards || []).find((x) => x.id === id);
+      addChip(`⛓ ${c ? c.label : id}`, () => savePins({ constraints: (session.pins.constraints || []).filter((x) => x !== id) }), c && c.instruction);
+    });
+    (pins.enhancers || []).forEach((id) => {
+      const e = (TAX.conversionEnhancers || []).find((x) => x.id === id);
+      addChip(`🛡 ${e ? e.label : id}`, () => savePins({ enhancers: (session.pins.enhancers || []).filter((x) => x !== id) }), 'Rendered on the exported image');
+    });
+  }
+  host.hidden = !host.children.length;
+}
+
+function syncDisclosures(pins) {
+  pins = pins || session.pins || {};
+  const leverCount = LEVER_KEYS.filter((k) => pins[k]).length;
+  const extraCount = (pins.constraints || []).length + (pins.enhancers || []).length + (pins.insights || []).length;
+  const setBtn = (btnId, cntId, open, label, count) => {
+    const btn = $(btnId); const cnt = $(cntId);
+    btn.childNodes[0].textContent = `${open ? '▾' : '▸'} ${label}`;
+    btn.classList.toggle('open', open);
+    const show = count > 0;
+    if (cnt.hidden === show || cnt.textContent !== String(count)) { cnt.textContent = count; cnt.hidden = !show; if (show) { cnt.classList.remove('pop'); void cnt.offsetWidth; cnt.classList.add('pop'); } }
+  };
+  setBtn('levers-toggle', 'levers-count', ui.leversOpen, 'Creative levers', leverCount);
+  setBtn('extras-toggle', 'extras-count', ui.extrasOpen, 'Constraints & extras', extraCount);
+  $('levers-panel').hidden = !ui.leversOpen;
+  $('extras-drawer').hidden = !ui.extrasOpen;
+}
+
+function toggleLevers(v) { ui.leversOpen = v == null ? !ui.leversOpen : v; renderChain(); }
+function toggleExtras(v) { ui.extrasOpen = v == null ? !ui.extrasOpen : v; renderChain(); }
+function closeLevers() { if (ui.leversOpen) toggleLevers(false); }
+function closeExtras() { if (ui.extrasOpen) toggleExtras(false); }
 
 const INSIGHT_EMOJI = { envy: '👀', shame: '🙈', fear: '😰', grief: '🥀', vanity: '💅', longing: '🌙', invisibility: '👻', pride: '🦚' };
 function insightEmoji(e) { return INSIGHT_EMOJI[e] || '🫀'; }
@@ -568,36 +633,14 @@ function toggleInsight(id, mined) {
   savePins({ insights: cur });
 }
 
-// ---------- collapse the brief to a bar once concepts exist ----------
-function briefSummaryHtml() {
-  const p = session.pins || {};
-  const parts = [];
-  if (p.persona) parts.push('🎯 ' + esc(personaName(p.persona)));
-  if (p.pain) parts.push('💢 ' + esc(painLabel(p.pain)));
-  if (p.awarenessStage) parts.push('📶 ' + esc(stageName(p.awarenessStage)));
-  const creative = ['angle', 'mechanic', 'format', 'hookTactic', 'tagline', 'visualIdea', 'product'].filter((k) => p[k]).length + (p.cta ? 1 : 0);
-  if (creative) parts.push(`+${creative} creative`);
-  const ins = (p.insights || []).length; if (ins) parts.push(`🫀 ${ins} insight${ins > 1 ? 's' : ''}`);
-  const cons = (p.constraints || []).length; if (cons) parts.push(`${cons} constraint${cons > 1 ? 's' : ''}`);
-  const enh = (p.enhancers || []).length; if (enh) parts.push(`${enh} enhancer${enh > 1 ? 's' : ''}`);
-  const summary = parts.length ? parts.join('  ·  ') : 'Nothing set — anything goes';
-  return summary + ' &nbsp;<a class="brief-edit-link" id="brief-edit">edit ▸</a>';
-}
-function updateBriefSummary() {
-  const el = $('brief-summary'); if (!el) return;
-  el.innerHTML = briefSummaryHtml();
-  const link = $('brief-edit'); if (link) link.addEventListener('click', () => setBriefCollapse(false));
-}
-function setBriefCollapse(v) {
-  briefCollapsed = v;
-  const bar = document.querySelector('.brief-bar'); if (!bar) return;
-  bar.classList.toggle('collapsed', v);
-  $('brief-toggle').textContent = v ? '▸' : '▾';
-  if (v) updateBriefSummary();
-}
+let pinsSaving = Promise.resolve(); // Enter-to-generate awaits the in-flight pin save
 async function savePins(partial) {
-  try { const data = await api('POST', '/api/pins', { sessionId: session.id, pins: partial }); session = data.session; renderChain(); }
-  catch (e) { if (isSessionErr(e)) { await recreateSession(); } else toast(e.message, true); }
+  const p = (async () => {
+    try { const data = await api('POST', '/api/pins', { sessionId: session.id, pins: partial }); session = data.session; renderChain(); }
+    catch (e) { if (isSessionErr(e)) { await recreateSession(); } else toast(e.message, true); }
+  })();
+  pinsSaving = p;
+  return p;
 }
 function pinPart(key, value) { savePins({ [key]: value }); toast(`Added to Brief · ${key}: ${displayPin(key, value)}`); }
 function pinFrame(card) {
@@ -607,7 +650,10 @@ function pinFrame(card) {
 }
 
 // ---------- generate / surprise / variations ----------
+let streaming = false;
 async function deal() {
+  if (streaming) return;
+  streaming = true; $('deal-btn').disabled = true;
   showLoader('Generating & quality-checking concepts — cards appear as they pass…');
   const board = $('board');
   let sawCard = false;
@@ -637,7 +683,7 @@ async function deal() {
         if (!line) continue;
         let msg; try { msg = JSON.parse(line); } catch { continue; }
         if (msg.type === 'card') {
-          if (!sawCard) { sawCard = true; hideLoader(); setBriefCollapse(true); }
+          if (!sawCard) { sawCard = true; hideLoader(); closeLevers(); closeExtras(); }
           board.appendChild(cardEl(msg.card));
         } else if (msg.type === 'done') {
           session = msg.session; render(); // authoritative re-render (reconciles order + accumulates)
@@ -656,7 +702,7 @@ async function deal() {
     // Stale session (server restarted) → recreate once and retry, but only if nothing rendered yet.
     if (isSessionErr(e) && !sawCard) { try { await recreateSession(); await runStream(); } catch (e2) { handleErr(e2); } }
     else handleErr(e);
-  } finally { hideLoader(); }
+  } finally { hideLoader(); streaming = false; $('deal-btn').disabled = false; render(); }
 }
 function spin() {
   const roll = {};
@@ -1016,7 +1062,25 @@ document.addEventListener('keydown', (e) => {
 initRail();
 $('spin-btn').addEventListener('click', spin);
 $('deal-btn').addEventListener('click', deal);
-$('brief-toggle').addEventListener('click', () => setBriefCollapse(!briefCollapsed));
+$('levers-toggle').addEventListener('click', () => toggleLevers());
+$('extras-toggle').addEventListener('click', () => toggleExtras());
+// Enter anywhere in the composer = Generate (after committing the field being edited)
+$('brief').addEventListener('keydown', async (e) => {
+  if (e.key !== 'Enter' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'BUTTON') return;
+  e.preventDefault();
+  if (e.target.tagName === 'INPUT' && e.target.type === 'text') e.target.dispatchEvent(new Event('change'));
+  await pinsSaving;
+  deal();
+});
+// Esc closes the topmost layer: comment widget → extras drawer → levers → champion modal
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  if (commentWidget) { closeCommentWidget(); return; }
+  if (ui.extrasOpen) { toggleExtras(false); return; }
+  if (ui.leversOpen) { toggleLevers(false); return; }
+  const modal = $('champion-modal');
+  if (!modal.hidden) modal.hidden = true;
+});
 $('chain-clear').addEventListener('click', () => { const cleared = { constraints: [], enhancers: [], insights: [] }; chainSlots().forEach((s) => { cleared[s.key] = ''; }); savePins(cleared); });
 document.addEventListener('mouseup', onTextSelect);
 document.addEventListener('mousedown', (e) => { if (commentWidget && !e.target.closest('.comment-widget')) closeCommentWidget(); });
