@@ -954,7 +954,7 @@ function renderExportResult(data, card, champ) {
     ${badges.length ? `<label class="ex-label">Trust elements woven into the layout</label><div class="ex-box">${badges.map(esc).join(' · ')}</div>` : ''}
     ${zones ? `<label class="ex-label">Copy placed in the ad</label><div class="ex-box">${zones}</div>` : ''}
     ${refs.length ? `<label class="ex-label">Reference images (used for image-to-image)</label><div class="ex-box">${refs.map(esc).join('<br>')}</div>` : '<div class="ex-warn">⚠ No product reference image — paste product photo URL(s) above and re-export for accurate product fidelity.</div>'}
-    ${data.file ? `<div class="export-saved">✓ Saved to <b>${esc(data.file)}</b></div>` : (data.error ? `<div class="ex-warn">⚠ ${esc(data.error)}</div>` : '')}
+    ${data.error ? `<div class="ex-warn">⚠ ${esc(data.error)}</div>` : ''}
   `;
   const copyBtn = $('ex-copy');
   if (copyBtn) copyBtn.addEventListener('click', () => {
