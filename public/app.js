@@ -814,6 +814,23 @@ async function openChampion(card) {
   try { const data = await callWithSession('POST', '/api/champion', () => ({ sessionId: session.id, card })); session = data.session; renderChampionModal(card, data.champion); render(); }
   catch (e) { handleErr(e); } finally { hideLoader(); }
 }
+// Build flow inside the finalized modal: 1 Concept → 2 Template & Prompt → 3 Image.
+// champReached = furthest step unlocked; crumbs behind it stay clickable.
+let champReached = 1;
+function setChampStep(n) {
+  champReached = Math.max(champReached, n);
+  for (let i = 1; i <= 3; i++) {
+    const host = $(`champ-step-${i}`); if (host) host.hidden = i !== n;
+  }
+  document.querySelectorAll('#champ-crumbs .crumb').forEach((c) => {
+    const s = Number(c.dataset.step);
+    c.disabled = s > champReached;
+    c.classList.toggle('active', s === n);
+    c.classList.toggle('done', s < n && s <= champReached);
+  });
+  const box = document.querySelector('#champion-modal .modal-box'); if (box) box.scrollTop = 0;
+}
+
 function renderChampionModal(card, champ) {
   currentChampion = { card, champ };
   const body = $('champion-body');
@@ -831,30 +848,63 @@ function renderChampionModal(card, champ) {
   let hookBlock = '';
   if (champ.primaryText) hookBlock = `<h3>On-image copy</h3><div class="block">${esc(champ.primaryText)}</div>`;
   const visualText = champ.visualIdea || card.visualIdea;
-  const visual = visualText ? `<h3>Visual direction</h3><div class="block">🎬 ${esc(visualText)}</div>` : '';
+  const visual = visualText ? `<h3>Visual direction</h3><div class="block visual-block clamped">🎬 ${esc(visualText)}</div><button class="read-more" id="visual-more" hidden>Read more ▾</button>` : '';
   const ctaBlock = card.cta ? `<h3>Call to action</h3><div class="block">📣 ${esc(card.cta)}</div>` : '';
   modalReturnFocus = document.activeElement;
   body.className = 'champ';
   body.innerHTML = `
     <h2>★ Finalized concept <svg class="check-draw" viewBox="0 0 20 20" aria-hidden="true"><path d="M4 10.5l4 4 8-9"/></svg></h2>
-    <div class="headline" id="champ-headline">${esc(champ.headline)}</div>
-    <h3>Hero tagline <span class="hint-inline">— pick the one to build the ad on</span></h3>
-    <div class="tagline-picker" id="tagline-picker">${radios}</div>
-    ${visual}${ctaBlock}
-    <details class="champ-details">
-      <summary><span class="cd-chev">▸</span> Concept · On-image copy · Why it works · Compliance</summary>
-      <h3>Concept</h3><div class="block">${esc(champ.concept)}</div>
-      ${hookBlock}
-      <h3>Why it works</h3><div class="block">${esc(champ.whyItWorks)}</div>
-      <h3>Compliance</h3><div class="block compliance">✓ ${esc(champ.complianceCheck)}</div>
-    </details>
-    <div id="champ-edit"></div>
-    <div class="export-row">
-      <span class="model-badge">Nano Banana Pro · templated</span>
-      <button class="primary-btn" id="export-btn" data-glow>Build ad from template →</button>
+    <div class="champ-crumbs" id="champ-crumbs">
+      <button type="button" class="crumb" data-step="1"><span class="crumb-n">1</span> Concept</button><span class="crumb-sep">›</span>
+      <button type="button" class="crumb" data-step="2" disabled><span class="crumb-n">2</span> Template &amp; Prompt</button><span class="crumb-sep">›</span>
+      <button type="button" class="crumb" data-step="3" disabled><span class="crumb-n">3</span> Image</button>
     </div>
-    <input id="ref-input" class="ref-input" type="text" placeholder="Product reference image URL(s) for image-to-image — comma separated" value="${esc((deck.referenceImages || []).join(', '))}" />
-    <div class="export-result" id="export-result"></div>`;
+    <div class="champ-step" id="champ-step-1">
+      <div class="headline" id="champ-headline">${esc(champ.headline)}</div>
+      <h3>Hero tagline <span class="hint-inline">— pick the one to build the ad on</span></h3>
+      <div class="tagline-picker" id="tagline-picker">${radios}</div>
+      ${visual}${ctaBlock}
+      <details class="champ-details">
+        <summary><span class="cd-chev">▸</span> Concept · On-image copy · Why it works · Compliance</summary>
+        <h3>Concept</h3><div class="block">${esc(champ.concept)}</div>
+        ${hookBlock}
+        <h3>Why it works</h3><div class="block">${esc(champ.whyItWorks)}</div>
+        <h3>Compliance</h3><div class="block compliance">✓ ${esc(champ.complianceCheck)}</div>
+      </details>
+      <div id="champ-edit"></div>
+      <div class="export-row">
+        <span class="model-badge">Nano Banana Pro · templated</span>
+        <button class="primary-btn" id="export-btn" data-glow>Build ad from template →</button>
+      </div>
+      <input id="ref-input" class="ref-input" type="text" placeholder="Product reference image URL(s) for image-to-image — comma separated" value="${esc((deck.referenceImages || []).join(', '))}" />
+    </div>
+    <div class="champ-step" id="champ-step-2" hidden>
+      <div class="export-result" id="export-result"></div>
+    </div>
+    <div class="champ-step" id="champ-step-3" hidden>
+      <button type="button" class="ghost-btn step-back" id="gen-back">‹ Change template or prompt</button>
+      <div id="gen-image-result"></div>
+    </div>`;
+
+  // step navigation
+  champReached = 1;
+  body.querySelectorAll('#champ-crumbs .crumb').forEach((c) => c.addEventListener('click', () => setChampStep(Number(c.dataset.step))));
+  $('gen-back').addEventListener('click', () => setChampStep(2));
+  setChampStep(1);
+
+  // visual direction: clamp long scenes to 4 lines with an inline toggle
+  const vb = body.querySelector('.visual-block');
+  const more = $('visual-more');
+  if (vb && more) {
+    more.addEventListener('click', () => {
+      const open = !vb.classList.contains('clamped');
+      vb.classList.toggle('clamped', open);
+      more.textContent = open ? 'Read more ▾' : 'Show less ▴';
+    });
+    // measure after the modal is actually visible (heights are 0 while hidden);
+    // setTimeout, not rAF — rAF stalls in throttled/background tabs
+    setTimeout(() => { if (vb.scrollHeight > vb.clientHeight + 2) more.hidden = false; }, 30);
+  }
 
   // inline edit/comment on the finalized concept
   const editHost = $('champ-edit');
@@ -923,6 +973,7 @@ async function exportConcept(card, champ, templateNumber = null) {
   try {
     const data = await callWithSession('POST', '/api/export', () => ({ sessionId: session.id, card, champion: champ, referenceImages, templateNumber }));
     renderExportResult(data, card, champ);
+    setChampStep(2);
   } catch (e) { toast(e.message, true); } finally { hideLoader(); }
 }
 
@@ -953,12 +1004,11 @@ function renderExportResult(data, card, champ) {
       <select id="gen-resolution"><option value="1K">1K (fast)</option><option value="2K" selected>2K</option><option value="4K">4K</option></select>
       <button class="primary-btn" id="gen-image-btn" data-glow>🎨 Generate image →</button>
     </div>
-    <div id="gen-image-result"></div>
     <label class="ex-label">Negative prompt (folded into the “Avoid:” line)</label>
     <div class="ex-box">${esc(rec.negative_prompt || '')}</div>
     ${badges.length ? `<label class="ex-label">Trust elements woven into the layout</label><div class="ex-box">${badges.map(esc).join(' · ')}</div>` : ''}
     ${zones ? `<label class="ex-label">Copy placed in the ad</label><div class="ex-box">${zones}</div>` : ''}
-    ${refs.length ? `<label class="ex-label">Reference images (used for image-to-image)</label><div class="ex-box">${refs.map(esc).join('<br>')}</div>` : '<div class="ex-warn">⚠ No product reference image — paste product photo URL(s) above and re-export for accurate product fidelity.</div>'}
+    ${refs.length ? `<label class="ex-label">Reference images (used for image-to-image)</label><div class="ex-box">${refs.map(esc).join('<br>')}</div>` : '<div class="ex-warn">⚠ No product reference image — go back to step 1 (Concept), paste product photo URL(s), and rebuild for accurate product fidelity.</div>'}
     ${data.error ? `<div class="ex-warn">⚠ ${esc(data.error)}</div>` : ''}
   `;
   const copyBtn = $('ex-copy');
@@ -968,7 +1018,7 @@ function renderExportResult(data, card, champ) {
     if (navigator.clipboard) navigator.clipboard.writeText(rec.prompt || '').then(done).catch(() => { document.execCommand('copy'); done(); });
     else { document.execCommand('copy'); done(); }
   });
-  $('gen-image-btn').addEventListener('click', () => generateImageUI(rec, refs));
+  $('gen-image-btn').addEventListener('click', () => { setChampStep(3); generateImageUI(rec, refs); });
 
   // Populate the template picker — auto-limited to the best matches for THIS concept
   // (by brief category + tagline/copy overlap), with a "show all" toggle. Override → re-export.

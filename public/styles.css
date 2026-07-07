@@ -390,6 +390,25 @@ input::placeholder, textarea::placeholder { color: #9ca3af; }
 .tl-opt:has(input:checked) { border-color: var(--forest); background: rgba(26, 81, 41, .05); box-shadow: var(--ring-selected); }
 .champ .block { background: var(--bg-inset); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); padding: 12px; font-size: 13px; white-space: pre-wrap; }
 
+/* build-flow breadcrumbs: 1 Concept › 2 Template & Prompt › 3 Image */
+.champ-crumbs { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 10px 0 14px; }
+.crumb { display: inline-flex; align-items: center; gap: 6px; background: transparent; border: 1px solid var(--border); color: var(--text-3); border-radius: var(--pill); padding: 4px 11px 4px 5px; font-size: 12px; font-weight: 500; }
+.crumb .crumb-n { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border-radius: 50%; background: var(--bg-inset); color: var(--text-3); font-size: 10.5px; font-weight: 700; }
+.crumb:not(:disabled):hover { border-color: var(--border-strong); color: var(--text-1); }
+.crumb.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+.crumb.active .crumb-n { background: rgba(255, 255, 255, .22); color: #fff; }
+.crumb.done { background: var(--bg-inset); color: var(--text-1); }
+.crumb.done .crumb-n { background: var(--forest); color: #fff; }
+.crumb:disabled { opacity: .45; }
+.crumb-sep { color: var(--sage); font-size: 13px; }
+.champ-step { animation: fade-in .25s var(--smooth) backwards; }
+.step-back { margin-bottom: 10px; font-size: 12px; }
+
+/* visual direction clamp */
+.visual-block.clamped { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+.read-more { display: block; margin: 4px 0 0 auto; background: transparent; border: none; color: var(--text-1); font-size: 11.5px; font-weight: 600; padding: 2px 4px; cursor: pointer; }
+.read-more:hover { text-decoration: underline; }
+
 /* collapsed detail sections (copy / rationale / compliance) */
 .champ-details { margin-top: 16px; border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); padding: 0 12px; }
 .champ-details summary { list-style: none; cursor: pointer; padding: 10px 0; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .6px; color: var(--text-3); display: flex; align-items: center; gap: 7px; }
