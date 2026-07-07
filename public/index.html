@@ -31,21 +31,7 @@
 
   <!-- WORKSPACE -->
   <section id="game" class="game" hidden>
-    <!-- SIDE: chat + saved + finalized -->
-    <aside class="side">
-      <div class="chat">
-        <div class="chat-head">🧠 Creative partner <span class="chat-sub">steer me anytime</span></div>
-        <div id="chat-log" class="chat-log"></div>
-        <div id="chat-suggestions" class="chat-suggestions"></div>
-        <button id="chat-context" class="chat-context" type="button"></button>
-        <div class="chat-input-row">
-          <textarea id="chat-input" rows="1" placeholder="Share an idea, or ask for concepts… (Enter to send, Shift+Enter for a new line)"></textarea>
-          <button class="primary-btn" id="chat-send">Send</button>
-        </div>
-      </div>
-    </aside>
-
-    <!-- MAIN: brief bar on top, concepts below -->
+    <!-- MAIN: brief composer on top, concept feed below -->
     <main class="main">
       <section class="brief-bar">
         <div class="brief-head"><button class="brief-toggle" id="brief-toggle" title="Show or hide the brief">▾</button> Brief <span class="brief-sub" id="brief-sub">set what you want, then Generate — leave anything blank and it's chosen for you</span></div>
@@ -62,6 +48,24 @@
       <div class="board-head"><h2 id="board-title">Concepts</h2><span class="board-status" id="board-status"></span></div>
       <div id="board" class="hand"></div>
     </main>
+
+    <!-- CHAT RAIL: creative partner, collapsible -->
+    <aside class="side" id="chat-rail">
+      <div class="chat">
+        <div class="chat-head">
+          <span class="chat-head-label">🧠 Creative partner <span class="chat-sub">steer me anytime</span></span>
+          <button id="rail-toggle" class="rail-toggle" type="button" title="Collapse chat">⇥</button>
+        </div>
+        <div id="chat-log" class="chat-log"></div>
+        <div id="chat-suggestions" class="chat-suggestions"></div>
+        <button id="chat-context" class="chat-context" type="button"></button>
+        <div class="chat-input-row">
+          <textarea id="chat-input" rows="1" placeholder="Share an idea, or ask for concepts… (Enter to send, Shift+Enter for a new line)"></textarea>
+          <button class="primary-btn" id="chat-send">Send</button>
+        </div>
+      </div>
+      <button id="rail-strip" class="rail-strip" type="button" title="Open the creative partner ( / )">🧠<span id="rail-dot" class="rail-dot" hidden></span></button>
+    </aside>
   </section>
 
   <!-- FINALIZE MODAL -->

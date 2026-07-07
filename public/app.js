@@ -233,6 +233,19 @@ function syncChatSend() {
   btn.disabled = !$('chat-input').value.trim();
 }
 
+// ---------- chat rail (collapsible copilot) ----------
+function railCollapsed() { return $('game').classList.contains('rail-collapsed'); }
+function setRail(open, { focus = false } = {}) {
+  $('game').classList.toggle('rail-collapsed', !open);
+  try { localStorage.setItem('cf.railOpen', open ? '1' : '0'); } catch { /* private mode */ }
+  if (open) { $('rail-dot').hidden = true; if (focus) $('chat-input').focus(); }
+}
+function initRail() {
+  let open = true;
+  try { open = localStorage.getItem('cf.railOpen') !== '0'; } catch { /* private mode */ }
+  setRail(open);
+}
+
 let chatCtl = null;
 async function sendChat(retry = false) {
   const input = $('chat-input');
@@ -248,6 +261,7 @@ async function sendChat(retry = false) {
       { signal: chatCtl.signal });
     session = data.session; suggestions = data.suggestions || suggestions;
     render(); renderChat();
+    if (railCollapsed()) $('rail-dot').hidden = false; // reply arrived while rail closed
     if (data.cards && data.cards.length) toast(`${data.cards.length} concept(s) added to the board`);
   } catch (e) {
     pending.remove();
@@ -990,6 +1004,16 @@ $('chat-send').addEventListener('click', () => sendChat());
 $('chat-input').addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); } });
 $('chat-input').addEventListener('input', autoGrowChat);
 syncChatSend();
+$('rail-toggle').addEventListener('click', () => setRail(false));
+$('rail-strip').addEventListener('click', () => setRail(true, { focus: true }));
+document.addEventListener('keydown', (e) => {
+  if (e.key !== '/' || e.ctrlKey || e.metaKey || e.altKey) return;
+  const t = e.target;
+  if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
+  if ($('game').hidden) return;
+  e.preventDefault(); setRail(true, { focus: true });
+});
+initRail();
 $('spin-btn').addEventListener('click', spin);
 $('deal-btn').addEventListener('click', deal);
 $('brief-toggle').addEventListener('click', () => setBriefCollapse(!briefCollapsed));
