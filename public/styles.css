@@ -404,6 +404,10 @@ input::placeholder, textarea::placeholder { color: #9ca3af; }
 .loader #loader-text { color: var(--text-3); margin-top: 8px; text-align: center; }
 @keyframes bob { 0%,100% { transform: translateY(0) rotate(-4deg);} 50% { transform: translateY(-8px) rotate(4deg);} }
 
+/* numbered circle on the copy that carries a comment */
+.cmark { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; border-radius: 50%; background: var(--forest); color: #fff; font-size: 10px; font-weight: 700; font-family: var(--font); font-style: normal; margin-left: 6px; vertical-align: middle; flex: 0 0 auto; cursor: help; animation: badge-pop .35s var(--spring) backwards; user-select: none; }
+.cnum { display: inline-flex; align-items: center; justify-content: center; width: 15px; height: 15px; border-radius: 50%; background: var(--forest); color: #fff; font-size: 9.5px; font-weight: 700; margin-right: 6px; flex: 0 0 auto; user-select: none; }
+
 /* inline comments on cards */
 .card .comments { display: flex; flex-direction: column; gap: 5px; }
 .comment-item { background: var(--bg-inset); border: 1px solid var(--border-subtle); border-left: 2px solid var(--forest); border-radius: 0 var(--radius) var(--radius) 0; padding: 6px 8px; font-size: 11.5px; }
@@ -415,8 +419,9 @@ input::placeholder, textarea::placeholder { color: #9ca3af; }
 .regen-btn:hover { border-color: var(--border-strong); background: rgba(26, 81, 41, .06); }
 .card .hint-select { font-size: 10.5px; color: var(--text-3); text-align: center; opacity: .8; }
 
-/* floating comment widget */
-.comment-widget { position: absolute; z-index: 70; background: var(--bg-surface); border: 1px solid #f3f4f6; border-radius: var(--radius-lg); box-shadow: var(--shadow-2xl); padding: 10px; width: 270px; animation: rise .3s var(--spring-soft) backwards; }
+/* floating comment widget — fixed so it lands on the selection even in scrolled panes */
+.comment-widget { position: fixed; z-index: 70; background: var(--bg-surface); border: 1px solid #f3f4f6; border-radius: var(--radius-lg); box-shadow: var(--shadow-2xl); padding: 10px; width: 270px; transform-origin: top left; animation: cw-in .22s var(--spring-soft) backwards; }
+@keyframes cw-in { from { opacity: 0; transform: scale(.95); } to { opacity: 1; transform: scale(1); } }
 .comment-widget .cw-quote { font-size: 11px; color: var(--text-1); font-style: italic; margin-bottom: 6px; max-height: 44px; overflow: hidden; }
 .comment-widget textarea { width: 100%; font-size: 12.5px; height: 56px; margin-bottom: 6px; }
 .comment-widget .cw-actions { display: flex; gap: 6px; justify-content: flex-end; }

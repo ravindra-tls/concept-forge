@@ -390,16 +390,17 @@ function cardEl(card) {
   crown.addEventListener('click', () => openChampion(card));
   actions.append(variants, crown); el.appendChild(actions);
 
-  // inline comments + regenerate (select any text on the card)
+  // inline comments + regenerate (select any copy on the card)
   const cmts = cardComments[card.id] || [];
   if (cmts.length) {
+    applyCommentMarkers(el, cmts, CARD_COMMENTABLE);
     el.appendChild(commentsEl(cmts, () => { renderBoard(); }, card.id, cardComments));
     const regen = document.createElement('button'); regen.className = 'regen-btn';
     regen.textContent = `↻ Regenerate with ${cmts.length} comment${cmts.length > 1 ? 's' : ''}`;
     regen.addEventListener('click', () => refineCardUI(card));
     el.appendChild(regen);
   } else {
-    const hint = document.createElement('div'); hint.className = 'hint-select'; hint.textContent = '✎ select any text to comment & regenerate';
+    const hint = document.createElement('div'); hint.className = 'hint-select'; hint.textContent = '✎ select any copy above to comment & regenerate';
     el.appendChild(hint);
   }
 
@@ -411,7 +412,7 @@ function commentsEl(cmts, rerender, id, store) {
   const cwrap = document.createElement('div'); cwrap.className = 'comments';
   cmts.forEach((cm, idx) => {
     const it = document.createElement('div'); it.className = 'comment-item';
-    it.innerHTML = `<span class="crm" title="remove">✕</span><span class="cq">“${esc(cm.quote.length > 60 ? cm.quote.slice(0, 60) + '…' : cm.quote)}”</span> <span class="cc">${esc(cm.comment)}</span>`;
+    it.innerHTML = `<span class="crm" title="remove">✕</span><span class="cnum">${idx + 1}</span><span class="cq">“${esc(cm.quote.length > 60 ? cm.quote.slice(0, 60) + '…' : cm.quote)}”</span> <span class="cc">${esc(cm.comment)}</span>`;
     it.querySelector('.crm').addEventListener('click', () => { cmts.splice(idx, 1); if (!cmts.length) delete store[id]; rerender(); });
     cwrap.appendChild(it);
   });
@@ -856,13 +857,14 @@ function renderChampionModal(card, champ) {
   const editHost = $('champ-edit');
   const cmts = championComments[card.id] || [];
   if (cmts.length) {
+    applyCommentMarkers(body, cmts, CHAMP_COMMENTABLE);
     editHost.appendChild(commentsEl(cmts, () => renderChampionModal(currentChampion.card, currentChampion.champ), card.id, championComments));
     const regen = document.createElement('button'); regen.className = 'regen-btn';
     regen.textContent = `↻ Regenerate finalized concept (${cmts.length})`;
     regen.addEventListener('click', () => refineChampionUI(card, champ));
     editHost.appendChild(regen);
   } else {
-    const hint = document.createElement('div'); hint.className = 'hint-select'; hint.textContent = '✎ select any text above to comment & regenerate this concept';
+    const hint = document.createElement('div'); hint.className = 'hint-select'; hint.textContent = '✎ select any copy above to comment & regenerate this concept';
     editHost.appendChild(hint);
   }
 
@@ -1083,21 +1085,49 @@ async function generateImageUI(rec, refs) {
   }
 }
 
-// ---------- side lists ----------
 // ---------- inline comments → regenerate (board + finalized) ----------
+// Only actual creative copy is commentable — never section headers, labels,
+// tags, scores, buttons, or the export panel.
+const CARD_COMMENTABLE = '.tagline, .insight-line, .angle, .visual, .concept, .hook, .cta';
+const CHAMP_COMMENTABLE = '.champ .headline, .champ .block, .tl-opt';
+
+function toElement(node) { return node && node.nodeType === 3 ? node.parentElement : node; }
+
 function onTextSelect(e) {
   if (e && e.target && e.target.closest && e.target.closest('.comment-widget')) return;
   setTimeout(() => {
     const sel = window.getSelection();
     const text = sel ? sel.toString().trim() : '';
-    if (!text || text.length < 2) return;
-    let node = sel.anchorNode; if (node && node.nodeType === 3) node = node.parentElement;
-    if (!node || !node.closest) return;
+    if (!text || text.length < 2 || !sel.rangeCount) return;
+    const a = toElement(sel.anchorNode); const b = toElement(sel.focusNode);
+    if (!a || !a.closest || !b || !b.closest) return;
     const rect = sel.getRangeAt(0).getBoundingClientRect();
-    const boardCard = node.closest('#board .card');
-    if (boardCard && boardCard.dataset.id) { showCommentWidget(boardCard.dataset.id, text, rect, 'board'); return; }
-    if (node.closest('#champion-body') && currentChampion) { showCommentWidget(currentChampion.card.id, text, rect, 'champion'); }
+    const boardCard = a.closest('#board .card');
+    if (boardCard && boardCard.dataset.id) {
+      // both selection endpoints must sit in the SAME commentable copy element
+      const el = a.closest(CARD_COMMENTABLE);
+      if (el && el === b.closest(CARD_COMMENTABLE)) showCommentWidget(boardCard.dataset.id, text, rect, 'board');
+      return;
+    }
+    if (a.closest('#champion-body') && currentChampion) {
+      if (a.closest('.export-result, .export-row, .ref-input, #champ-edit')) return;
+      const el = a.closest(CHAMP_COMMENTABLE);
+      if (el && el === b.closest(CHAMP_COMMENTABLE)) showCommentWidget(currentChampion.card.id, text, rect, 'champion');
+    }
   }, 0);
+}
+
+// Numbered circle markers on the copy that carries each comment (rebuilt on render).
+function applyCommentMarkers(rootEl, cmts, selectorList) {
+  const norm = (s) => String(s || '').replace(/\s+/g, ' ').trim().toLowerCase();
+  cmts.forEach((cm, i) => {
+    const q = norm(cm.quote);
+    const el = [...rootEl.querySelectorAll(selectorList)].find((n) => norm(n.textContent).includes(q));
+    if (!el) return;
+    const mark = document.createElement('span'); mark.className = 'cmark'; mark.textContent = i + 1;
+    mark.title = cm.comment;
+    el.appendChild(mark);
+  });
 }
 function closeCommentWidget() { if (commentWidget) { commentWidget.remove(); commentWidget = null; } }
 function showCommentWidget(id, quote, rect, mode) {
@@ -1109,7 +1139,9 @@ function showCommentWidget(id, quote, rect, mode) {
     <textarea placeholder="What should change about this? (e.g. make it warmer, shorter, more specific)"></textarea>
     <div class="cw-actions"><button class="ghost-btn cw-cancel">Cancel</button><button class="primary-btn cw-add">Add comment</button></div>`;
   document.body.appendChild(w);
-  w.style.top = Math.min(rect.bottom + 6, window.innerHeight - 170) + 'px';
+  // fixed positioning: rect is viewport-based, so the widget lands on the
+  // selection even inside the scrolled modal or a scrolled feed
+  w.style.top = Math.min(rect.bottom + 6, window.innerHeight - 180) + 'px';
   w.style.left = Math.min(Math.max(rect.left, 8), window.innerWidth - 290) + 'px';
   const ta = w.querySelector('textarea'); ta.focus();
   const add = () => {
