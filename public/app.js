@@ -108,10 +108,54 @@ async function startSession() {
 }
 
 // ---------- master render ----------
-function render() { renderBoard(); renderChain(); syncStats(); }
+function render() { renderFeed(); renderChain(); syncStats(); }
+
+// ---------- feed tabs: Board | Finalized ----------
+let feedView = 'board';
+function setFeedView(v) {
+  feedView = v;
+  document.querySelectorAll('#feed-tabs .feed-tab').forEach((b) => b.classList.toggle('selected', b.dataset.view === v));
+  renderFeed();
+}
+function renderFeed() {
+  const isBoard = feedView === 'board';
+  $('board').hidden = !isBoard;
+  $('finalized').hidden = isBoard;
+  if (isBoard) renderBoard(); else renderFinalized();
+}
+// Champions deduped by card id (last finalize wins), newest first.
+function dedupedChampions() {
+  const map = new Map();
+  (session.champions || []).forEach((c) => map.set(c.id, c));
+  return [...map.values()].reverse();
+}
+function renderFinalized() {
+  const host = $('finalized'); host.innerHTML = '';
+  const champs = dedupedChampions();
+  if (!champs.length) { host.innerHTML = '<div class="feed-empty">★ Nothing finalized yet — finalize a concept on the Board and it locks in here.</div>'; return; }
+  champs.forEach((c) => {
+    const row = document.createElement('div'); row.className = 'final-row';
+    const when = c.at ? new Date(c.at).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) : '';
+    row.innerHTML = `
+      <div class="final-main">
+        <div class="final-headline">${esc(c.champion.headline)}</div>
+        <div class="final-sub">${esc(c.dna?.format || '')}${c.dna?.mechanic ? ' · ' + esc(c.dna.mechanic) : ''}${when ? ' · ' + esc(when) : ''}</div>
+      </div>
+      <button class="ghost-btn final-open" type="button">Open ★</button>`;
+    // Reopen the stored champion directly — no re-polish, no API call.
+    row.querySelector('.final-open').addEventListener('click', () =>
+      renderChampionModal({ id: c.id, dna: c.dna, visualIdea: c.champion.visualIdea || '' }, c.champion));
+    host.appendChild(row);
+  });
+}
 function syncStats() {
-  const b = (session.board || []).length, f = (session.champions || []).length;
+  const b = (session.board || []).length, f = dedupedChampions().length;
   $('counter').textContent = `${b} concept${b !== 1 ? 's' : ''} · ${f} finalized`;
+  setTabCount('board-count', b); setTabCount('final-count', f);
+}
+function setTabCount(id, n) {
+  const el = $(id); if (!el) return;
+  if (el.textContent !== String(n)) { el.textContent = n; el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop'); }
 }
 
 // ---------- chat ----------
@@ -159,6 +203,7 @@ function msgEl(m, isLastAssistant) {
 }
 
 function revealCard(id) {
+  if (feedView !== 'board') setFeedView('board');
   const el = document.querySelector(`#board .card[data-id="${id}"]`);
   if (!el) { toast('That concept is no longer on the board'); return; }
   el.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -276,7 +321,7 @@ function renderBoard() {
   const host = $('board'); host.innerHTML = '';
   const board = session.board || [];
   $('board-status').textContent = board.length ? `${board.length} concept(s)` : '';
-  if (!board.length) { host.innerHTML = '<div class="mini empty" style="grid-column:1/-1">No concepts yet — set your Brief above and hit <b>Generate</b>, or ask the partner on the left.</div>'; return; }
+  if (!board.length) { host.innerHTML = '<div class="feed-empty" style="grid-column:1/-1">No concepts yet — set your Brief above and hit <b>⚡ Generate</b>, or ask the partner on the right.</div>'; return; }
   board.forEach((c) => host.appendChild(cardEl(c)));
 }
 
@@ -341,7 +386,7 @@ function cardEl(card) {
   variants.title = 'Generate 3 variations of this concept';
   const crown = document.createElement('button'); crown.className = 'crown'; crown.textContent = '★ Finalize';
   if (streaming) { variants.disabled = true; crown.disabled = true; } // mid-stream cards act after the run settles
-  variants.addEventListener('click', () => makeVariants(card));
+  variants.addEventListener('click', () => makeVariants(card, variants));
   crown.addEventListener('click', () => openChampion(card));
   actions.append(variants, crown); el.appendChild(actions);
 
@@ -379,15 +424,19 @@ async function discard(card) {
 }
 
 // 3 fresh variations of one concept — same machinery as breeding, seeded by this card.
-async function makeVariants(card) {
-  showLoader('Creating 3 variants of this concept…');
+// Pending state lives on the button itself; the feed keeps working underneath.
+async function makeVariants(card, btn) {
+  if (btn) { btn.disabled = true; btn.textContent = '🧬 Making variants…'; btn.classList.add('working'); }
   try {
     const data = await callWithSession('POST', '/api/breed', () => ({ sessionId: session.id, parents: [card], loadout: { count: 3 } }));
     session = data.session; render();
     $('board-status').textContent = statusLine(data.stats);
     if (data.stats && data.stats.passed === 0) toast('No variants cleared the quality bar — try again.', true);
     else toast('🧬 Variants added to the board');
-  } catch (e) { handleErr(e); } finally { hideLoader(); }
+  } catch (e) {
+    handleErr(e);
+    if (btn) { btn.disabled = false; btn.textContent = '🧬 Make variants'; btn.classList.remove('working'); }
+  }
 }
 
 // ---------- Brief (assembly chain) ----------
@@ -650,12 +699,49 @@ function pinFrame(card) {
 }
 
 // ---------- generate / surprise / variations ----------
+// In-feed loading experience: shimmer skeletons stand in for arriving concepts,
+// a slim gradient progress bar + rotating messages live in the feed header.
+const LOADING_MSGS = [
+  'Forging concepts on the anvil…',
+  'Judging every draft against the quality bar…',
+  'Hunting for the raw human truth…',
+  'Sharpening taglines until they stop thumbs…',
+  'Sketching the scene for each idea…',
+];
+let feedLoadTimer = null;
+function startFeedLoading(board, count) {
+  const status = $('board-status');
+  status.innerHTML = '<span class="feed-progress"><span></span></span><span id="feed-msg" class="feed-msg"></span>';
+  let i = 0; $('feed-msg').textContent = LOADING_MSGS[0];
+  feedLoadTimer = setInterval(() => {
+    const m = $('feed-msg'); if (!m) return;
+    i = (i + 1) % LOADING_MSGS.length;
+    m.style.opacity = 0;
+    setTimeout(() => { m.textContent = LOADING_MSGS[i]; m.style.opacity = 1; }, 300);
+  }, 4500);
+  const empty = board.querySelector('.feed-empty'); if (empty) empty.remove();
+  for (let k = 0; k < count; k++) {
+    const sk = document.createElement('div'); sk.className = 'card skeleton'; sk.style.animationDelay = `${k * 60}ms`;
+    sk.innerHTML = '<div class="sk-line w60"></div><div class="sk-line w90"></div><div class="sk-line w80"></div><div class="sk-block"></div><div class="sk-line w70"></div>';
+    board.appendChild(sk);
+  }
+}
+function placeCardInSkeleton(board, el) {
+  const sk = board.querySelector('.card.skeleton');
+  if (sk) board.replaceChild(el, sk); else board.appendChild(el);
+}
+function clearFeedLoading(board) {
+  if (feedLoadTimer) { clearInterval(feedLoadTimer); feedLoadTimer = null; }
+  board.querySelectorAll('.card.skeleton').forEach((s) => s.remove());
+}
+
 let streaming = false;
 async function deal() {
   if (streaming) return;
   streaming = true; $('deal-btn').disabled = true;
-  showLoader('Generating & quality-checking concepts — cards appear as they pass…');
+  setFeedView('board');
   const board = $('board');
+  startFeedLoading(board, toolbar.count);
   let sawCard = false;
 
   // One streamed run: cards arrive as NDJSON lines and render the moment they pass.
@@ -683,10 +769,11 @@ async function deal() {
         if (!line) continue;
         let msg; try { msg = JSON.parse(line); } catch { continue; }
         if (msg.type === 'card') {
-          if (!sawCard) { sawCard = true; hideLoader(); closeLevers(); closeExtras(); }
-          board.appendChild(cardEl(msg.card));
+          if (!sawCard) { sawCard = true; closeLevers(); closeExtras(); }
+          placeCardInSkeleton(board, cardEl(msg.card));
         } else if (msg.type === 'done') {
-          session = msg.session; render(); // authoritative re-render (reconciles order + accumulates)
+          clearFeedLoading(board); // leftovers out BEFORE the authoritative re-render
+          session = msg.session; render(); // reconciles order + accumulates
           $('board-status').textContent = statusLine(msg.stats);
           if (msg.stats && msg.stats.passed === 0) toast('No concepts cleared the quality bar — try loosening the brief (fewer constraints, allow the product, or a different persona/pain).', true);
         } else if (msg.type === 'error') {
@@ -702,7 +789,12 @@ async function deal() {
     // Stale session (server restarted) → recreate once and retry, but only if nothing rendered yet.
     if (isSessionErr(e) && !sawCard) { try { await recreateSession(); await runStream(); } catch (e2) { handleErr(e2); } }
     else handleErr(e);
-  } finally { hideLoader(); streaming = false; $('deal-btn').disabled = false; render(); }
+  } finally {
+    clearFeedLoading(board); streaming = false; $('deal-btn').disabled = false;
+    const stats = $('board-status').textContent; // keep the pass/fail line through the re-render
+    render();
+    if (stats && !stats.includes('concept(s)')) $('board-status').textContent = stats;
+  }
 }
 function spin() {
   const roll = {};
@@ -1064,6 +1156,7 @@ $('spin-btn').addEventListener('click', spin);
 $('deal-btn').addEventListener('click', deal);
 $('levers-toggle').addEventListener('click', () => toggleLevers());
 $('extras-toggle').addEventListener('click', () => toggleExtras());
+document.querySelectorAll('#feed-tabs .feed-tab').forEach((b) => b.addEventListener('click', () => setFeedView(b.dataset.view)));
 // Enter anywhere in the composer = Generate (after committing the field being edited)
 $('brief').addEventListener('keydown', async (e) => {
   if (e.key !== 'Enter' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'BUTTON') return;

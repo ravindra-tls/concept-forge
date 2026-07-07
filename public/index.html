@@ -52,8 +52,15 @@
         <div class="levers-panel" id="levers-panel" hidden></div>
         <div class="extras-drawer" id="extras-drawer" hidden></div>
       </section>
-      <div class="board-head"><h2 id="board-title">Concepts</h2><span class="board-status" id="board-status"></span></div>
+      <div class="board-head">
+        <div class="feed-tabs" id="feed-tabs">
+          <button class="feed-tab selected" data-view="board" type="button">Board <span class="tab-count" id="board-count">0</span></button>
+          <button class="feed-tab" data-view="final" type="button">Finalized <span class="tab-count" id="final-count">0</span></button>
+        </div>
+        <span class="board-status" id="board-status"></span>
+      </div>
       <div id="board" class="hand"></div>
+      <div id="finalized" class="finalized-list" hidden></div>
     </main>
 
     <!-- CHAT RAIL: creative partner, collapsible -->

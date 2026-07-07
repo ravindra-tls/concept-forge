@@ -312,7 +312,8 @@ async function handleApi(req, res, pathname) {
     if (!body.card) return sendJson(res, 400, { error: 'card required' });
     const champion = await polishChampion({ deck, card: body.card });
     const entry = { id: body.card.id, dna: body.card.dna, champion, at: new Date().toISOString() };
-    s.champions.push(entry);
+    const i = s.champions.findIndex((c) => c.id === entry.id);
+    if (i === -1) s.champions.push(entry); else s.champions[i] = entry; // re-finalizing replaces, never duplicates
     s.score += 25;
     sessionStore.save(s);
     return sendJson(res, 200, { champion, session: sessionView(s) });
