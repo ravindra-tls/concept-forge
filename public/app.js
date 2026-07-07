@@ -1143,7 +1143,14 @@ function showCommentWidget(id, quote, rect, mode) {
   // selection even inside the scrolled modal or a scrolled feed
   w.style.top = Math.min(rect.bottom + 6, window.innerHeight - 180) + 'px';
   w.style.left = Math.min(Math.max(rect.left, 8), window.innerWidth - 290) + 'px';
-  const ta = w.querySelector('textarea'); ta.focus();
+  // Keys typed in the widget must never reach page-level shortcut handlers
+  // (our "/" chat shortcut, browser quick-find, space-scroll).
+  w.addEventListener('keydown', (ev) => ev.stopPropagation());
+  w.addEventListener('keyup', (ev) => ev.stopPropagation());
+  w.addEventListener('keypress', (ev) => ev.stopPropagation());
+  const ta = w.querySelector('textarea');
+  ta.focus({ preventScroll: true });
+  requestAnimationFrame(() => ta.focus({ preventScroll: true })); // survive the mouseup/entry-animation race
   const add = () => {
     const comment = ta.value.trim(); if (!comment) { ta.focus(); return; }
     (store[id] = store[id] || []).push({ quote, comment });
@@ -1193,6 +1200,7 @@ $('rail-toggle').addEventListener('click', () => setRail(false));
 $('rail-strip').addEventListener('click', () => setRail(true, { focus: true }));
 document.addEventListener('keydown', (e) => {
   if (e.key !== '/' || e.ctrlKey || e.metaKey || e.altKey) return;
+  if (commentWidget) return; // never steal focus while a comment is being written
   const t = e.target;
   if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
   if ($('game').hidden) return;
