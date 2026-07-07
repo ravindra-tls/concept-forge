@@ -508,12 +508,12 @@ function buildSeg(slot, pins) {
   return seg;
 }
 
-function chipTray(items, activeIds, getId, getLabel, getTitle, onToggle, onbrandFn) {
+function chipTray(items, activeIds, getId, getLabel, getTitle, onToggle) {
   const tray = document.createElement('div'); tray.className = 'chip-tray';
   items.forEach((it) => {
     const id = getId(it);
     const chip = document.createElement('button');
-    chip.className = 'chip' + (activeIds.includes(id) ? ' active' : '') + (onbrandFn && onbrandFn(it) ? ' onbrand' : '');
+    chip.className = 'chip' + (activeIds.includes(id) ? ' active' : '');
     chip.textContent = getLabel(it); chip.title = getTitle(it);
     chip.addEventListener('click', () => onToggle(id));
     tray.appendChild(chip);
@@ -556,12 +556,11 @@ function renderExtras(pins) {
   }));
   host.appendChild(cg);
   // conversion enhancers (badges on the exported image)
-  const approved = (deck.approvedLanguage || []).join(' ').toLowerCase();
   const eg = document.createElement('div'); eg.className = 'brief-toggle-group';
-  eg.innerHTML = '<div class="tg-label">Conversion enhancers <span class="seg-info" title="Integrated into the exported image in the form that fits the composition — a badge cluster, icon+text, a seal, a strip, or short trust text. Never woven into the copy. ✓ = matches this brand’s approved language.">i</span></div>';
+  eg.innerHTML = '<div class="tg-label">Conversion enhancers <span class="seg-info" title="Integrated into the exported image in the form that fits the composition — a badge cluster, icon+text, a seal, a strip, or short trust text. Never woven into the copy.">i</span></div>';
   eg.appendChild(chipTray(TAX.conversionEnhancers || [], pins.enhancers || [], (e) => e.id, (e) => e.label, () => 'Integrated into the exported image, placed to fit the composition', (id) => {
     const cur = (session.pins.enhancers || []).slice(); const i = cur.indexOf(id); if (i === -1) cur.push(id); else cur.splice(i, 1); savePins({ enhancers: cur });
-  }, (e) => (e.match || []).some((m) => approved.includes(m))));
+  }));
   host.appendChild(eg);
   // human-insight mining (the emotional core)
   const ig = document.createElement('div'); ig.className = 'brief-toggle-group insight-group';
