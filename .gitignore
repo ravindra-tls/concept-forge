@@ -6,9 +6,11 @@
 sessions/
 exports/
 
-# Distilled grounding cache (regenerated from brand-context/*.md)
-brand-context/*.deck.json
+# NOTE: brand-context/*.deck.json ARE committed in this Vercel variant —
+# the serverless filesystem is read-only, so the pre-distilled deck cache
+# must ship with the deploy (otherwise every cold start re-distills, ~60s).
 
 # OS / editor
 .DS_Store
 node_modules/
+.vercel
