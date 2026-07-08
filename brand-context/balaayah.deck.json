@@ -1,0 +1,332 @@
+{
+  "brand": "Balaayah Black Gram Body Booster — iYURA by The Ayurveda Experience",
+  "product": "Balaayah Black Gram Body Booster (100 ml body oil)",
+  "anchorType": "pain",
+  "market": "US-primary + UK, EU, AU, CA (English-speaking global); women 40+, skewing 50s–70s+",
+  "offer": "$45 / 100 ml — flagship iYURA body oil; Beauty Shortlist Award 2026 Editor's Choice; sold out multiple times",
+  "price": "$45 USD / 100 ml",
+  "oneLiner": "Give your body what your face has always had — hundreds of thousands of women already have.",
+  "productTruths": [
+    "Made specifically for body skin that has changed — crepiness, dryness, looseness on arms, thighs, knees, belly, neck; not a face product adapted to the body",
+    "Black Gram Lentil (Vigna Mungo): protein-rich Ayurvedic ingredient that volumises and firms the look of crepey, saggy skin",
+    "Himalayan Rock Salt: triple-action moisture — hydrates, moisturizes, and protects against moisture loss year-round",
+    "Velvet Beans (Mucuna Pruriens): support the appearance of firmness and tone",
+    "Non-sticky, fast-absorbing — wear-ready in minutes; does not transfer to clothes or sheets",
+    "Sesame + castor oil base; Frankincense + Vanilla scent — warm, meditative daily ritual",
+    "100% natural, vegan, cruelty-free; no mineral oil, no parabens",
+    "35,153 first-party reviews, avg 4.51★ (80% five-star); sold out repeatedly",
+    "Age-stamped proof: age 80 — 'unbelievable tightening of loose aged skin over all four extremities'; age 67 — 'would not have even considered going sleeveless before'; age 61 — 'crepey dry wrinkly skin… now supple and smooth and firm'; age 58 — 'wouldn't even think of wearing shorts! Now I wear them all the time'",
+    "Honest guardrail: a real minority see no change — all claims stay modest and anchor to the look/appearance of firmness, never miracles"
+  ],
+  "personas": [
+    {
+      "id": "overnight-ambush",
+      "name": "The Overnight Ambush",
+      "lifeContext": "Perimenopausal, 42–52. Woke up in a body she doesn't recognise; the speed of the change is the trauma. 'My arms seem to have gone crepey overnight.' The estrogen crash stripped collagen support across the whole body at once — she feels ambushed, not gradually aged.",
+      "desire": "To not be blindsided by her own body; to feel it is still hers.",
+      "innerMonologue": "This wasn't supposed to happen yet — I'm not old.",
+      "unspokenFears": [
+        "That this is only the beginning and it accelerates from here",
+        "That the rest of her body follows her arms — that she's lost control of all of it",
+        "That she crossed a line she didn't know was coming and can't go back"
+      ],
+      "socialComparison": "Friends the same age whose arms 'haven't turned yet' — she watches them in short sleeves and says nothing.",
+      "shameMoments": [
+        "Raising her arm and watching the inner-arm skin fold in a way it never used to",
+        "Pulling out a sleeveless dress that fit last summer and deciding against it",
+        "Catching herself in a changing-room mirror and thinking 'who is that?'"
+      ],
+      "identityLost": "A woman who never thought about her arms — her body was just hers, unremarkable, uncomplicated.",
+      "identityDesired": "A woman who isn't afraid of what comes next; who feels at home in her body again."
+    },
+    {
+      "id": "betrayed-athlete",
+      "name": "The Betrayed Athlete",
+      "lifeContext": "48–60. Slim, disciplined — lifts, spins, or recently lost weight. The skin caved anyway. 'I do weights 4× a week and spin 3× and am pretty slim… but the texture of my skin has changed.' Low body fat and weight loss exposed laxity; muscle tone can't restore dermal elasticity. Her entire discipline-equals-results worldview has broken down on this one thing.",
+      "desire": "For her effort to finally show — for her skin to match the body she works so hard for.",
+      "innerMonologue": "I earned better than this.",
+      "unspokenFears": [
+        "That this one is genuinely out of her control — and she doesn't do out of control",
+        "That no topical product will work either, that she's just been adding to a pile of failed solutions",
+        "That people see the arms and not the discipline"
+      ],
+      "socialComparison": "The friend whose arms 'look like a teenager's' — she tracks this quietly and feels a specific, articulate envy she'd never admit.",
+      "shameMoments": [
+        "A strong lift in the gym mirror where the arm still hangs loose underneath",
+        "A workout photo where the body looks fit but the upper arms tell a different story",
+        "Hearing 'you look amazing for your age' and knowing 'for your age' is doing a lot of work"
+      ],
+      "identityLost": "The woman in control of her body — the one who could change what she didn't like if she just worked hard enough.",
+      "identityDesired": "Still in control, skin included — the woman whose outside finally matches her effort."
+    },
+    {
+      "id": "becoming-my-mother",
+      "name": "Becoming My Mother",
+      "lifeContext": "60–72. Sees a dead or elderly relative in her own arms and hands. 'Dear Lord, at some point while I was sleeping I had turned into my Grandma.' Hands and arms are exactly where she watched her own mother age; seeing it on herself collapses the generational distance. This is grief, not vanity.",
+      "desire": "To still recognise herself; a little softness and dignity — not youth, just herself.",
+      "innerMonologue": "That's my mother's arm. When did it become mine?",
+      "unspokenFears": [
+        "Invisibility — being seen only as 'an old woman' rather than the person she still is inside",
+        "Being past the point of help — that every product is for someone ten years younger",
+        "That the grief is vanity, and vanity is shameful at her age"
+      ],
+      "socialComparison": "Her own younger self more than any other woman — 'I was so pretty in my younger days and that makes it all the harder.'",
+      "shameMoments": [
+        "The back of her hands in a video call — suddenly her mother's hands",
+        "Catching her arms in a shop window reflection and doing a double-take",
+        "A family photo where she sees the generational line written on her skin"
+      ],
+      "identityLost": "The beautiful woman she was — whose body felt like her own, not a relay baton passed down a bloodline.",
+      "identityDesired": "A woman at peace in the skin she has now — who can look at her arms with softness instead of flinching."
+    },
+    {
+      "id": "right-to-bare-arms",
+      "name": "The Right to Bare Arms",
+      "lifeContext": "55–70. Done apologising; comfort and freedom over other people's comfort. 'I am exercising my right to bare arms.' 'If others don't like the sight of my arms they can look away.' She has consciously traded the appearance economy for peace — but it's often a reaction against self-consciousness, not the absence of it.",
+      "desire": "To feel genuinely good in a sleeveless top — for herself, not for anyone else's gaze; to be spoken to like an intelligent adult.",
+      "innerMonologue": "I'm too old to spend one more summer hiding.",
+      "unspokenFears": [
+        "Being patronised — sold shame or 'youth' dressed up as empowerment",
+        "Being called 'brave' for going sleeveless, which is its own kind of insult",
+        "That her defiance is a performance and underneath it she still cares"
+      ],
+      "socialComparison": "No one openly — but she privately clocks women who seem genuinely effortless about their bodies, with a quiet wondering.",
+      "shameMoments": [
+        "A stranger's glance tracking down to her arms on a hot day",
+        "Being called 'brave' for wearing a strappy top — the word that undoes everything",
+        "Noticing herself checking the mirror before leaving the house — and resenting that she still does"
+      ],
+      "identityLost": "A woman who covered up to keep the peace — who dressed for other people's comfort without realising it.",
+      "identityDesired": "A woman who pleases herself, unapologetically — and who feels as free as she sounds."
+    },
+    {
+      "id": "hype-immune-pragmatist",
+      "name": "The Hype-Immune Pragmatist",
+      "lifeContext": "40+, any age. Blunt, hype-proof, wants the honest answer even if it's 'nothing fully works.' 'Creams do nothing… you can't just slap a cream on and hope it will magically tighten your skin.' Decades of overpromising products have taught her that expensive ≠ better and 'reverse/erase' = a lie. She converts only on modest, specific, believable claims backed by real proof.",
+      "desire": "The truth — and something that actually does a little, reliably, without insulting her intelligence.",
+      "innerMonologue": "Prove it. And don't insult me.",
+      "unspokenFears": [
+        "Being taken for a fool again — another expensive jar of hope that does nothing",
+        "That her scepticism has become a wall she can't see past, even when something real is in front of her",
+        "Spending $45 and being right that it was pointless"
+      ],
+      "socialComparison": "Nobody — she's consciously above the comparison game and proud of it. But she notices when a friend's skin genuinely looks different.",
+      "shameMoments": [
+        "A miracle-claim ad that made her feel briefly hopeful before she caught herself",
+        "A €80 cream that did exactly what Nivea did",
+        "Returning a product and having to explain to customer service why 'it just didn't work'"
+      ],
+      "identityLost": "A woman burned repeatedly by hype — who learned to distrust the entire category.",
+      "identityDesired": "The woman who finally found the honest one — who was right to hold out for proof."
+    },
+    {
+      "id": "quiet-concealer",
+      "name": "The Quiet Concealer",
+      "lifeContext": "50–65. Has hidden her arms for years — elaborate avoidance rituals, strategic cardigans, declining the pool. 'Haven't shown my upper arms for years. I'm vain! Wish I wasn't.' The double shame (the body + shame about caring about it) keeps her silent and covered. She suffers most privately and buys most quietly.",
+      "desire": "To stop the daily concealment calculations; to put on short sleeves without a running internal commentary.",
+      "innerMonologue": "Cardigan on. No one needs to see this.",
+      "unspokenFears": [
+        "A candid photo from behind — or someone seeing her in full light unexpectedly",
+        "A changing room, a pool, any situation that removes the option to cover",
+        "That her partner has noticed and is too kind to say anything"
+      ],
+      "socialComparison": "Women who 'just wear the sleeveless dress' — who seem not to think about it at all. She cannot fathom how they do it.",
+      "shameMoments": [
+        "A hot day spent in long sleeves, sweating, because the alternative felt worse",
+        "Declining an invitation to the pool — and making up a reason",
+        "A friend's casual poolside photo where everyone else's arms are bare"
+      ],
+      "identityLost": "The woman who planned every outfit around concealment — whose summer wardrobe is a set of cover strategies.",
+      "identityDesired": "A woman who forgets to think about her arms — who reaches for the short sleeve without a second thought."
+    }
+  ],
+  "pains": [
+    {
+      "id": "crepey-saggy-arms",
+      "label": "Crepey / saggy arms — the epicentre",
+      "description": "Upper inner arms are the primary site of pain — texture change to crepe-paper, tissue-paper, or elephant-skin feel. Visible, uncontrollable, and the zone a lifetime of moisturiser never addressed.",
+      "vocPhrases": [
+        "crepe city",
+        "tissue paper — looks and feels like tissue paper and does not bounce back",
+        "elephant skin",
+        "half elephant skin and half cottage cheese",
+        "the saggy baggy elephant is my spirit animal",
+        "alligator skin",
+        "my 'friendly upper arms' — the ones that wave at everyone",
+        "flabby crepey and old",
+        "I hate my wrinkly arms",
+        "the undersides of the arms are Crepe City!"
+      ]
+    },
+    {
+      "id": "overnight-change",
+      "label": "It changed overnight (menopause ambush)",
+      "description": "The speed of change is the trauma — whole-body collagen loss presents as sudden, not gradual. She feels ambushed, not aged.",
+      "vocPhrases": [
+        "after menopause my skin changed overnight",
+        "my collagen appears to have gone AWOL suddenly",
+        "my arms seem to have gone crepey overnight",
+        "since menopause my skin has become so dry making it appear crepey",
+        "Oh gawd it's finally come to this"
+      ]
+    },
+    {
+      "id": "effort-that-failed",
+      "label": "Discipline that didn't pay off (the betrayal)",
+      "description": "She did everything right — lifts, spins, lost weight — and the skin changed anyway. Low body fat exposes laxity; muscle tone doesn't restore dermal elasticity. Her discipline-equals-results worldview breaks here.",
+      "vocPhrases": [
+        "I do weights 4× a week and spin 3× and am pretty slim… but the texture of my skin has changed",
+        "even weightlifting gives me muscle definition but doesn't change elasticity of skin",
+        "went more crepey when I lost weight",
+        "cannot win at this age!!"
+      ]
+    },
+    {
+      "id": "lotions-that-failed",
+      "label": "Moisturisers and creams that 'sit on top' and do nothing",
+      "description": "Decades of trying — prescribed lotions, hundreds of moisturisers — with no visible change to texture or firmness. Scepticism is earned.",
+      "vocPhrases": [
+        "no amount of moisturiser has helped",
+        "tried hundreds of moisturisers",
+        "doctors prescribed lotions and nothing helped",
+        "went through hundreds of dollars of lotions before I found this",
+        "creams do nothing — you can't just slap a cream on and hope it will magically tighten your skin"
+      ]
+    },
+    {
+      "id": "covering-up",
+      "label": "Years of covering up / avoidance",
+      "description": "Cardigans, long sleeves in summer, skipping the pool — elaborate daily concealment rituals that quietly shrink her life.",
+      "vocPhrases": [
+        "haven't shown my upper arms for years",
+        "sleeves are my answer",
+        "embarrassed to show them",
+        "still can't bring myself to wear a swimsuit",
+        "I didn't have the confidence to wear sleeveless dresses anymore"
+      ]
+    },
+    {
+      "id": "mirror-photo-flinch",
+      "label": "The mirror / photo flinch",
+      "description": "Seeing herself unexpectedly — in a mirror, a candid photo, a shop window — and not recognising the woman looking back.",
+      "vocPhrases": [
+        "can't bear seeing myself in the mirror",
+        "if I see a photo I think 'good Lord woman'",
+        "I found my crepey skin while bending over… couldn't believe what I was seeing"
+      ]
+    },
+    {
+      "id": "grief-and-invisibility",
+      "label": "Grief and invisibility (becoming my mother; outside not matching inside)",
+      "description": "Seeing a parent or grandparent in her own arms and hands — grief collapsing generational distance. Compounded by the broader sense of becoming invisible after 50.",
+      "vocPhrases": [
+        "that is not me!!",
+        "Dear Lord, at some point while I was sleeping I had turned into my Grandma",
+        "I still feel young inside but have to accept that others look at me and see an old person",
+        "I look just like my mother when she was very old! But… that is not me!!",
+        "women over 50 become pretty much invisible",
+        "I inherited this crepey skin from my mom"
+      ]
+    }
+  ],
+  "mechanisms": [
+    "Black Gram Lentil (Vigna Mungo) — protein-rich; volumises and firms the look of crepey, saggy skin; Ayurveda's trusted body-firming ingredient",
+    "Himalayan Rock Salt — triple-effect moisture: hydrates + moisturizes + protects against moisture loss (holds in dry heat, sun, year-round air-conditioning)",
+    "Velvet Beans (Mucuna Pruriens) — support the appearance of firmness and tone",
+    "Sesame + castor oil base — non-sticky, fast-absorbing; wear-ready in minutes; does not transfer to clothes or sheets",
+    "Frankincense + Vanilla scent — warm, meditative daily ritual (not overwhelming)"
+  ],
+  "proofPoints": [
+    "35,153 first-party reviews, avg 4.51★ — 80% five-star (dwh.gold_reviews, 2018–2026, US/UK/EU/AU/CA)",
+    "Beauty Shortlist Award 2026 Editor's Choice",
+    "Sold out multiple times",
+    "Age 80: 'unbelievable tightening of loose aged skin over all four extremities'",
+    "Age 67: 'would not have even considered going sleeveless before'",
+    "Age 61: 'crepey dry wrinkly skin… now supple and smooth and firm'",
+    "Age 58: 'wouldn't even think of wearing shorts! Now I wear them all the time'",
+    "'dramatic change in 4 days'",
+    "Firming of the look of thighs, upper arms, and belly after ~4 months of use",
+    "'I was very sceptical… did not believe it would be even half as good' — converted hype-immune buyer",
+    "'No more hiding under long [sleeves]' — concealment-to-freedom arc",
+    "'I am no longer embarrassed to wear shorts and strappy tops'",
+    "Honest guardrail acknowledged: a real minority see no change after 6 weeks — modest claims are intentional"
+  ],
+  "brandVoice": {
+    "adjectives": [
+      "warm",
+      "shame-free",
+      "empowering",
+      "ritual-centred",
+      "honest",
+      "clinically credible but human",
+      "trusted-friend tone"
+    ],
+    "approvedLanguage": [
+      "crepey",
+      "saggy",
+      "loose skin",
+      "papery",
+      "firm again",
+      "the look of firmness",
+      "the appearance of firmness",
+      "velvet-soft",
+      "glossy",
+      "non-sticky",
+      "fast-absorbing",
+      "day-long moisture",
+      "nourished",
+      "natural",
+      "vegan",
+      "ritual",
+      "Black Gram Lentil",
+      "Himalayan Rock Salt",
+      "Frankincense",
+      "Vanilla",
+      "sleeveless",
+      "for myself",
+      "smooths the look of",
+      "over weeks"
+    ],
+    "bannedLanguage": [
+      "cure",
+      "treat",
+      "anti-aging",
+      "anti-aging",
+      "weight loss",
+      "reverse",
+      "erase",
+      "turn back the clock",
+      "look younger",
+      "miracle",
+      "overnight results (as a promise)",
+      "younger-looking",
+      "anti-aging (any hyphenation)"
+    ],
+    "notes": "Never shame aging and never shame her for caring — she holds both truths at once ('what's wrong with looking my age?' AND 'I can't help caring'). Never use 25-year-old models or youth-targeting imagery — she names the credibility gap herself. No fear-mongering. No before/after digital alteration. Lead with modest, specific, believable proof and age-stamped testimonials. Scent is the #1 real objection at scale: Frankincense reads 'too strong / medicinal / old' to a meaningful minority — NEVER make scent the primary hook; frame as warm, natural, not overwhelming; never imply she'll 'smell old' (a live complaint: 'I'm 50… I'm not old and I don't want to smell old'). Body confidence is private and internal — 'for myself' beats 'show it off.' Earn the $45 price with proof and honesty, never hype. The tactile discovery scene (post-shower, catching the arm in the light) and the ritual application scene are both high-resonance creative territories."
+  },
+  "constraints": [
+    "All results framed as 'the look/appearance of firmness' — never medical claims, never 'reverses,' 'cures,' or 'treats'",
+    "No before/after imagery that is digitally altered or airbrushed — show real texture",
+    "Feature real women 40+, including 60s–70s+; no young-women imagery; no models that create a credibility gap",
+    "Scent must never be the primary hook; frame frankincense/vanilla as warm, natural, not overwhelming; never 'smell old' implication",
+    "Claims stay modest and specific — a real minority see no change; never promise miracles or dramatic overnight transformation",
+    "Never use banned words: cure, treat, anti-aging, weight loss, reverse, erase, turn back the clock, look younger",
+    "Never shame aging and never shame her for caring about aging — hold both truths with warmth",
+    "No fear-mongering, no 'you're losing collagen fast' alarm framing",
+    "Do not use 'chicken skin' or 'papery' as primary texture descriptors — not in real VOC; lead with crepe paper / tissue paper / elephant skin",
+    "Price ($45) is never apologised for — earn it with proof; acknowledge it is premium without making it a liability",
+    "No multi-step-routine complexity framing; no synthetic-looking gloss; warm earthy palette only"
+  ],
+  "visualStyle": {
+    "palette": [
+      "dark amber #4A3728",
+      "warm amber #B8860B",
+      "deep brown #3E2723",
+      "cream #FFF9EE",
+      "rich gold #C9A85C"
+    ],
+    "lightingDefault": "Soft warm studio light; natural post-shower or bathroom light for ritual/discovery scenes; golden-hour warmth",
+    "colorGrading": "warm",
+    "typography": "Clean serif; generous whitespace; confident but unhurried"
+  }
+}

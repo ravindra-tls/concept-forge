@@ -1,4 +1,33 @@
-# ⚒ Concept Forge
+# ⚒ Concept Forge — Vercel deployment
+
+> This is the **Vercel-deployable variant** of [ravindra-tls/concept-forge](https://github.com/ravindra-tls/concept-forge).
+> The app itself is identical; this repo adds the serverless wiring.
+
+## Deploying on Vercel
+
+1. Import this repo in Vercel (framework preset: **Other**; no build step needed).
+2. Set the environment variables in Project → Settings → Environment Variables:
+   - `ANTHROPIC_API_KEY` — required (concept generation, judging, finalize, template fill)
+   - `FAL_KEY` — optional (image rendering via Nano Banana Pro; without it everything works except Generate image)
+3. Deploy. Static UI is served from `public/` by the CDN; all `/api/*` routes run in one
+   serverless function (`api/index.js`) that wraps the same zero-dependency handler
+   `server.js` uses locally — including the NDJSON streaming deal endpoint.
+
+**What's different from the main repo:**
+- `api/index.js` + `vercel.json` — serverless entry, `/api/*` rewrite, `maxDuration: 300`,
+  `includeFiles` for `knowledge/` + `brand-context/` (they're read at runtime).
+- Sessions are stored in `/tmp` (the only writable path) — they survive warm invocations
+  but are lost on cold starts. The client detects a stale session and recreates it
+  automatically; board/finalized state is per-session anyway.
+- `brand-context/*.deck.json` (the pre-distilled grounding decks) **are committed** so a
+  cold start never re-distills the brand document (~60s + tokens).
+- Long operations (deal ≈ 30–60s, finalize ≈ 30s) need `maxDuration` above the default —
+  on Hobby plans functions cap lower; if generation times out, enable Fluid Compute or
+  upgrade the plan.
+
+Local run is unchanged: `node server.js` → http://localhost:4317.
+
+---
 
 A gamified ad-concept ideation tool that uses the Anthropic API as a creative thinking
 partner. It sits on top of your existing **creative-strategy skill stack** (brand-intake →

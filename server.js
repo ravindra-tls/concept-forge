@@ -393,7 +393,10 @@ function serveStatic(req, res, pathname) {
   });
 }
 
-const server = http.createServer(async (req, res) => {
+// Request handler — used by the local server AND exported for the Vercel
+// serverless wrapper (api/index.js). On Vercel, static files are served by
+// the CDN straight from public/, so the function only ever sees /api/*.
+async function requestHandler(req, res) {
   const parsed = new URL(req.url, `http://localhost:${PORT}`);
   const pathname = parsed.pathname;
   try {
@@ -405,17 +408,22 @@ const server = http.createServer(async (req, res) => {
   } catch (err) {
     apiError(res, err);
   }
-});
+}
 
-server.listen(PORT, () => {
-  // eslint-disable-next-line no-console
-  console.log(`\n  Concept Forge running →  http://localhost:${PORT}`);
-  if (!hasApiKey()) {
+module.exports = { requestHandler };
+
+if (require.main === module) {
+  const server = http.createServer(requestHandler);
+  server.listen(PORT, () => {
     // eslint-disable-next-line no-console
-    console.log('  ⚠  No ANTHROPIC_API_KEY found. The UI loads, but dealing cards needs a key.');
-    console.log('     Add it to concept-forge/.env or set ANTHROPIC_ENV_FILE. See .env.example.\n');
-  } else {
-    // eslint-disable-next-line no-console
-    console.log('  ✓  API key detected.\n');
-  }
-});
+    console.log(`\n  Concept Forge running →  http://localhost:${PORT}`);
+    if (!hasApiKey()) {
+      // eslint-disable-next-line no-console
+      console.log('  ⚠  No ANTHROPIC_API_KEY found. The UI loads, but dealing cards needs a key.');
+      console.log('     Add it to concept-forge/.env or set ANTHROPIC_ENV_FILE. See .env.example.\n');
+    } else {
+      // eslint-disable-next-line no-console
+      console.log('  ✓  API key detected.\n');
+    }
+  });
+}
